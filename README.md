@@ -5,7 +5,7 @@ Source code for the Cinema South Festival (CSF) custom Airtable extensions, one 
 | Folder | Extension | Version | What it does |
 |---|---|---|---|
 | `countdown-homescreen/` | Countdown homescreen | v0.4.5 | Home-screen countdown to the festival with live record-count pills (per-pill filters) and a «מצב חיבור» connection-status panel. |
-| `timeline/` | Timeline | v0.2.7 | Multi-table festival timeline: columns per table, drag-create / move / resize with undo, cross-section window + band (names only, vertical when crowded), identical per-column header controls (⠿ · filter · ⇤ · ⋯ · ✕). |
+| `timeline/` | Timeline | v0.2.8 | Multi-table festival timeline: columns per table, drag-create / move / resize with undo, cross-section window + band (time snaps to 5 min) (names only, vertical when crowded), identical per-column header controls (⠿ · filter · ⇤ · ⋯ · ✕). |
 | `lists-ui/` | Lists UI («רשימות») | v0.6.1 | Interface extension for working lists: home, list page, compact and dynamic list views, sharing. |
 | `people-roles/` | People & Roles («אנשים ותפקידים») | v0.3.1 | Phone book plus people/role/assignment editing with duplicate-phone warnings and undo. |
 | `bulk-sheet/` | Bulk sheet («קופי פייסט - הזנה מרובה») | v0.5.1 | Spreadsheet-style copy-paste bulk entry into a table, in batches. |

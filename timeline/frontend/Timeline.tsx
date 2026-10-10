@@ -15,6 +15,7 @@ import {
     bandSlice,
     lensPlan,
     bandLabel,
+    xsPlan,
     keptCompress,
     colWidths,
     normalizeWidths,
@@ -35,8 +36,6 @@ import {
     toggleIn,
     normalizeOff,
     keepCentre,
-    band,
-    bandPx,
     columnStates,
     dayBar,
     dayOf,
@@ -380,8 +379,11 @@ export function Timeline(p: TimelineProps) {
     // with «כווץ שעות ריקות» ON a compressed pixel spans many minutes, so reading it back would drift (12:00 → 12:04)
     const centreT = !segs.length ? curT.current : progY.current !== null && Math.abs(scrollTop - progY.current) < 2 ? curT.current : mAt(scrollTop + vpH / 2);
     const k = Math.max(0, Math.min(p.days.length - 1, Math.floor(centreT / DAY_MIN)));
-    const [ba, bb] = segs.length ? band(segs, scrollTop, vpH, p.numbers.bandFrac) : [0, 0];
-    const bpx = bandPx(vpH, p.numbers.bandFrac);
+    // v0.2.8 (the owner 12:17): the cross-section time snaps to the nearest 5 min; the band sits on that time and the window
+    // picks items from exactly the band's minutes
+    const xp = xsPlan(segs, scrollTop, vpH, p.numbers.bandFrac, centreT);
+    const [ba, bb] = segs.length ? [xp.a, xp.b] : [0, 0];
+    const bpx = {top: xp.top, height: xp.height};
     // v0.2.3: is the current day's all-day row on screen? (all-day-only columns strip away when it isn't)
     const adSeg = segs.find(s => s.kind === 'all' && s.k === k);
     const allDayInView = !adSeg || (adSeg.y < scrollTop + vpH && adSeg.y + adSeg.h > scrollTop);
@@ -857,7 +859,7 @@ export function Timeline(p: TimelineProps) {
     const wRows = winGridRows(p.numbers.maxCards);
     const maxCards = hits.length > p.numbers.maxCards ? p.numbers.maxCards - 1 : p.numbers.maxCards;
     const wEmpty = xs && hits.length === 0;
-    const curMin = centreT;
+    const curMin = xp.t;
 
     const menuT = openDd?.startsWith('cm:') ? openDd.slice(3) : null;
     const menuL = [...(T.Content_Text_12 || '').split('|').map(x => x.trim()), '', '', '', '', ''].map((x, n) => x || ['להתחלה', 'הזז ימינה', 'הזז שמאלה', 'לסוף', 'סגור עמודה'][n] || '');
@@ -1275,7 +1277,7 @@ export function Timeline(p: TimelineProps) {
                         </div>
                     </>
                 ) : null}
-                <div className="tnow num" style={{top: vpH / 2 - 10, height: 20, lineHeight: '20px'}}>
+                <div className="tnow num" style={{top: xp.yc - 10, height: 20, lineHeight: '20px'}} data-t={xp.t}>
                     <bdi dir="ltr">{fmt(curMin)}</bdi>
                 </div>
             </div>

@@ -1032,3 +1032,18 @@ export function keptCompress(saved: {compress?: unknown; compressUser?: unknown}
     if (saved.compressUser === true) return saved.compress;
     return saved.compress === true ? true : def;
 }
+
+// ===================== v0.2.8: cross-section time snaps to 5 minutes (the owner 12:17) =====================
+export const XS_STEP = 5;
+/** nearest step on the timeline's wall-clock minutes (13:07 → 13:05, 13:08 → 13:10, x:x7.5 → up); 1440 is a multiple of 5,
+ *  so day boundaries stay exact (23:58 → 00:00 of the next day) */
+export const roundTo = (m: number, step = XS_STEP) => Math.round(m / step) * step;
+/** the cross-section for a scroll position: the rounded time, the band moved so its centre sits exactly on that time,
+ *  and the minute range [a, b] the window picks items from (same pixels as the drawn band) */
+export function xsPlan(segs: Seg[], scrollTop: number, vpH: number, frac: number, centreM: number, step = XS_STEP): {t: number; yc: number; top: number; height: number; a: number; b: number} {
+    const t = roundTo(centreM, step);
+    const {height} = bandPx(vpH, frac);
+    const yc = segs.length ? yOf(segs, t) - scrollTop : vpH / 2;
+    const top = yc - height / 2;
+    return {t, yc, top, height, a: segs.length ? mOf(segs, scrollTop + top) : 0, b: segs.length ? mOf(segs, scrollTop + top + height) : 0};
+}

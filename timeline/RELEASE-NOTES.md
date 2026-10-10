@@ -22,3 +22,5 @@ See /workspace/csf-demo-v13/PROD-RELEASE-TIMELINE-V010-2026-10-10.md
 - Cross-section window pills: ▾ · ⇤ · ✕ in the header order. ⇤ = narrow strip at the far left (click re-expands), ✕ = hidden from the window («הכל» restores). Saved per user.
 - «כווץ עמודות ריקות» and «כווץ שעות ריקות» both default ON. A user's own choice is kept; the pre-v0.2.6 auto-saved compress=false is not treated as a choice.
 - Fix: with compress ON, «עכשיו»/«קפיצה» show the exact target minute (no 12:00 → 12:04 drift).
+
+## v0.2.8 — the owner 12:17: the cross-section time snaps to the nearest 5 min (13:07 → 13:05, 13:08 → 13:10, x:x7.5 up). One plan (xsPlan) drives the band clock, the axis time tag, the band position (its centre sits on the rounded time) and the minute range the window picks items from. DST-safe (wall-clock minutes), works with compress ON. Includes v0.2.7 (status panel, other worker), first released with this version.
