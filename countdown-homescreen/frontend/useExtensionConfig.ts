@@ -1,4 +1,5 @@
 /**
+ * v3.4 (countdown v0.4.8, 13:22): Extension / Variant fields and values matched even more loosely (see looseName).
  * csf-countdown copy (v0.4.1): Door 2 is OPT-IN (`writes: true`) and OFF here → strictly read-only (the owner 23:58);
  *   the provider also finds the table loosely (findConfigTable). Otherwise identical to csf-extension-config v3.
  *
@@ -137,7 +138,10 @@ export const F = {
 
 /** v3.2 (2026-10-10): human-maintained reference fields, read-only (the code never writes them). Deliberately NOT part of the
  *  269-slot FIELD_ORDER, so the Omni prompt order, FIELD_ORDER.length and the Slot_Map sort stay exactly as they were. */
-export const EXTRA_FIELDS = {mappingImage: 'Mapping_Image', githubUrl: 'GitHub_URL'} as const;
+export const EXTRA_FIELDS = {mappingImage: 'Attachment_Mapping_Image', githubUrl: 'GitHub_URL'} as const;
+/** v3.3 (2026-10-10 12:57): the mapping field was renamed Mapping_Image → Attachment_Mapping_Image; the old name is still read
+ *  (loose) as a fallback so tables that were not renamed yet keep working. Not part of KNOWN_FIELDS. */
+export const LEGACY_FIELDS = {mappingImage: 'Mapping_Image'} as const;
 
 const triple = (n: number, ...prefixes: string[]) =>
     Array.from({length: n}, (_, i) => prefixes.map(p => (p.includes('#') ? p.replace('#', String(i + 1)) : `${p}_${i + 1}`))).flat();
@@ -278,7 +282,7 @@ export type ExtensionConfig = {
     ref: (slot: RefSlot) => ResolvedRef;
     options: (slot: OptionSlot) => OptionRow[];
     attachments: (slot: AttachmentSlot) => Array<{url: string; filename: string}>;
-    /** v3.2: Mapping_Image (Variant row → default row) + GitHub_URL, read-only. imageField/githubField = field visible to the element */
+    /** v3.2/v3.3: Attachment_Mapping_Image (old name Mapping_Image as fallback; Variant row → default row) + GitHub_URL, read-only. imageField/githubField = field visible to the element */
     mapping: () => {
         files: Array<{url: string; filename: string; thumb: string | null; type: string}>;
         from: 'variant' | 'default' | null;
@@ -306,14 +310,18 @@ export type ExtensionConfig = {
 // ---------------------------------------------------------------------------
 const NIKUD_RE = /[\u0591-\u05C7]/g;
 export function looseName(s: string): string {
-    return (s || '')
-        .normalize('NFC')
-        .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    // v3.4: = status-panel v4 looseKey — trim, NFKC, every format/bidi/zero-width char (\p{Cf}), nikud/combining marks,
+    // case, any whitespace / dash / _ / . ignored → «countdown homescreen» = «Countdown-Homescreen» = «countdown_homescreen».
+    return String(s ?? '')
+        .normalize('NFKC')
+        .replace(/\p{Cf}|\u034F|\u180E|\u115F|\u1160|\u3164|\uFFA0/gu, '')
         .replace(NIKUD_RE, '')
+        .replace(/\p{Mn}/gu, '')
+        .trim()
         .toLowerCase()
-        .replace(/[\s\u00A0_\-\u2010-\u2015.]+/g, '');
+        .replace(/[\s\p{Z}\p{Pd}_.\u05BE\u2010-\u2015\u2212]+/gu, '');
 }
-const DEFAULT_VARIANT_KEYS = new Set(['', 'default', 'ברירתמחדל', 'ברירתהמחדל', 'base', 'main']);
+const DEFAULT_VARIANT_KEYS = new Set(['', 'default', 'ברירתמחדל', 'ברירתהמחדל', 'base', 'main', '—']);
 function findLoose<T extends {id: string; name: string}>(items: readonly T[], ref: string): T | null {
     const r = ref.trim();
     if (!r) return null;
@@ -619,16 +627,27 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
     // v0.4.3 (countdown copy): Extension / Variant matched LOOSELY (case, spaces, _ - ., bidi marks); exact first.
     // A Variant of «default» / «ברירת מחדל» / «-» counts as the default row.
     const slugKey = looseName(slug);
+    // v3.4: the Extension / Variant FIELDS are found loosely too («Extension », «extension») — exact name first.
+    const fieldLoose = (name: string) => (table ? (table.getFieldByNameIfExists(name) ?? table.fields.find(f => looseName(f.name) === looseName(name)) ?? null) : null);
+    const extField = fieldLoose(F.extension);
+    const varField = fieldLoose(F.variant);
+    const cellStr = (r: AirtableRecord, f: NonNullable<typeof extField>) => {
+        try {
+            return r.getCellValueAsString(f.name); // by the real (visible) name — same as the rest of the hook
+        } catch {
+            return '';
+        }
+    };
     const variantKey = (r: AirtableRecord) => {
-        if (!table!.getFieldByNameIfExists(F.variant)) return '';
-        const k = looseName(r.getCellValueAsString(F.variant));
+        if (!varField) return '';
+        const k = looseName(cellStr(r, varField));
         return DEFAULT_VARIANT_KEYS.has(k) ? '' : k;
     };
     const rowsFor = (v: string) => {
-        if (!table || !records || !table.getFieldByNameIfExists(F.extension)) return [];
+        if (!table || !records || !extField) return [];
         const vk = DEFAULT_VARIANT_KEYS.has(looseName(v)) ? '' : looseName(v);
-        const hits = records.filter(r => looseName(r.getCellValueAsString(F.extension)) === slugKey && variantKey(r) === vk);
-        const exact = hits.filter(r => r.getCellValueAsString(F.extension).trim() === slug);
+        const hits = records.filter(r => looseName(cellStr(r, extField)) === slugKey && variantKey(r) === vk);
+        const exact = hits.filter(r => cellStr(r, extField).trim() === slug);
         return [...exact, ...hits.filter(r => !exact.includes(r))];
     };
     const baseMatches = useMemo(() => rowsFor(''), [table, records, slug]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -777,8 +796,17 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
     const options = (slot: OptionSlot) => parseOptionList(rawOf(slot));
     const mapping = () => {
         const has = (n: string) => !!table && !!table.getFieldByNameIfExists(n);
+        // Attachment_Mapping_Image exact → loose → the old Mapping_Image exact → loose
+        const mapName = (() => {
+            if (!table) return EXTRA_FIELDS.mappingImage as string;
+            for (const want of [EXTRA_FIELDS.mappingImage, LEGACY_FIELDS.mappingImage]) {
+                const f = table.getFieldByNameIfExists(want) ?? table.fields.find(x => looseName(x.name) === looseName(want));
+                if (f) return f.name;
+            }
+            return EXTRA_FIELDS.mappingImage as string;
+        })();
         const files = (r: AirtableRecord | null) => {
-            const v = cellRaw(r, EXTRA_FIELDS.mappingImage, table);
+            const v = cellRaw(r, mapName, table);
             return Array.isArray(v)
                 ? (v as Array<{url?: unknown; filename?: unknown; type?: unknown; thumbnails?: {large?: {url?: unknown}}}>).map(a => ({
                       url: String(a.url ?? ''),
@@ -795,7 +823,7 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
             files: fv.length ? fv : fd,
             from: fv.length ? ('variant' as const) : fd.length ? ('default' as const) : null,
             github: gv || cellString(record, EXTRA_FIELDS.githubUrl, table),
-            imageField: has(EXTRA_FIELDS.mappingImage),
+            imageField: has(mapName),
             githubField: has(EXTRA_FIELDS.githubUrl),
         };
     };
@@ -911,12 +939,9 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
         debug: {
             tableName: table ? table.name : null,
             rowCount: records ? records.length : null,
-            extensionValues:
-                table && records && table.getFieldByNameIfExists(F.extension)
-                    ? records.slice(0, 20).map(r => r.getCellValueAsString(F.extension))
-                    : [],
+            extensionValues: records && extField ? records.slice(0, 20).map(r => cellStr(r, extField)) : [],
             visibleFields: table ? table.fields.map(f => f.name) : [],
-            matchedExtension: record && table?.getFieldByNameIfExists(F.extension) ? record.getCellValueAsString(F.extension) : null,
+            matchedExtension: record && extField ? cellStr(record, extField) : null,
         },
     };
 }

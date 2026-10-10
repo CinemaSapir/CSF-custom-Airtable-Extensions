@@ -1,5 +1,5 @@
-// CSF shared mapping panel (status-panel v2). Same file in every extension; pure logic in statusCore.ts.
-// Right-pane boolean «show mapping · Extension_Config.Mapping_Image» (default OFF). ON → the matched row's Mapping_Image
+// CSF shared mapping panel (status-panel v3: field Attachment_Mapping_Image, loose fallback Mapping_Image). Same file in every extension; pure logic in statusCore.ts.
+// Right-pane boolean «show mapping · Extension_Config.Attachment_Mapping_Image» (default OFF). ON → the matched row's mapping
 // attachments as images (thumbnail «large», click = full size in a lightbox, «פתיחה בלשונית חדשה» = the full URL),
 // file name, and a link to GitHub_URL when present. Variant row → default row. Read-only: never writes.
 import {useEffect, useState} from 'react';
@@ -8,8 +8,8 @@ import type {Record as AtRecord, Table} from '@airtable/blocks/interface/models'
 import {
     GITHUB_FIELD,
     GITHUB_HINT,
-    MAPPING_FIELD,
     attachmentsOf,
+    pickMappingFieldName,
     looseKey,
     pickMapping,
     safeHttpUrl,
@@ -21,9 +21,15 @@ import {
 type Rowish = {id: string} | null | undefined;
 const fieldOf = (t: Table, name: string) => t.fields.find(f => f.name === name) ?? t.fields.find(f => looseKey(f.name) === looseKey(name)) ?? null;
 
-/** Reads Mapping_Image / GitHub_URL of the default + Variant rows (live records of the config table). Shared with «מצב חיבור». */
+/** Attachment_Mapping_Image (or the old Mapping_Image) of a config table, null when neither is visible to the element. */
+export function mappingFieldOf(t: Table | null) {
+    if (!t) return null;
+    const n = pickMappingFieldName(t.fields.map(f => f.name));
+    return n ? (t.fields.find(f => f.name === n) ?? null) : null;
+}
+/** Reads Attachment_Mapping_Image / GitHub_URL of the default + Variant rows (live records of the config table). Shared with «מצב חיבור». */
 export function readMapping(table: Table | null, records: readonly AtRecord[] | null, record: Rowish, variantRecord: Rowish, slug: string): MappingResult {
-    const img = table ? fieldOf(table, MAPPING_FIELD) : null;
+    const img = mappingFieldOf(table);
     const gh = table ? fieldOf(table, GITHUB_FIELD) : null;
     const cells = (r: Rowish): MappingCells | null => {
         if (!r) return null;
@@ -79,7 +85,7 @@ function MappingBody({m}: {m: MappingResult}) {
         <div className="csfmp" dir="rtl" data-slot="mapping-panel">
             <style>{CSS}</style>
             <button type="button" className="csfmp-h" onClick={() => setOpen(!open)}>
-                מיפוי · Extension_Config.Mapping_Image {m.state === 'ok' ? `(${m.files.length})` : '⚠'} {open ? '▴' : '▾'}
+                מיפוי · Extension_Config.Attachment_Mapping_Image {m.state === 'ok' ? `(${m.files.length})` : '⚠'} {open ? '▴' : '▾'}
             </button>
             {open && (
                 <div className="csfmp-b">

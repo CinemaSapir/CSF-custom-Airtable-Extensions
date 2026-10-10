@@ -1,7 +1,0 @@
-﻿Extension,Variant,Display_Name,Title,Heading_1,Helper_Text_1,Content_Text_1,Content_Text_2,Content_Text_3,Content_Text_4,Tab_Label_1,Tab_Label_2,Tab_Label_3,Tab_Label_4,Tab_Label_5,Tab_Label_6,Tab_Label_7,Tab_Label_8,Button_Text_1,Empty_State_Text_1,Error_Text_1,Source_Table_1,Source_Table_2,Source_Table_3,Source_Table_4,Source_Table_5,Source_Table_6,Option_List_1,Option_List_2,Number_1,Notes
-hospitality,,אירוח – מיפוי בלבד (לא מחובר עדיין),אירוח,פילוח אחד על המסך. היום והאדם נשארים.,[חיפוש],הקשר:,{n} רשומות · {table},עוד {n} — צמצם בחיפוש,(בלי שם),יום,אנשים,שיבוץ,אוכל + שתיה,לינה,נסיעות,כל הימים,כל האנשים,נקה,אין תוצאות לפילוח הזה,טבלה חסרה: {table},Itinerary,People,Staffing,Vouchers,Lodging,Trips,"all | הכל
-planned | מתוכנן
-done | בוצע","# טבלה | מילת «בוצע» | מילת «לא בוצע» (הצעה, לא מחובר)
-Vouchers | ניתן | מתוכנן
-Staffing | בוצע | מתוכנן
-Trips | מתואם | לא מתואם",80,לא מחובר עדיין — שורה לעיון בלבד. תוסף האירוח (תוסף בסיס ישן) לא קורא את הטבלה הזו; צריך קודם להעביר אותו ל-interface SDK (maps/hospitality.md). שינוי בתאים כאן לא ישנה כלום במסך.

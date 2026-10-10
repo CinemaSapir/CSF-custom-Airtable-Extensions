@@ -43,16 +43,25 @@ export const CONFIG_DEFAULTS = {
     Source_Field_8: 'Slots_Events.Project',
     /** v0.4.5: reserved — sum field of the future sold-tickets pill (empty = count records). */
     Source_Field_9: '',
+    /** v0.4.9 (the owner 13:59): the clock target = first slot on festival Day N. Festival Days table + its day-number field
+     *  (loose: Day / Day Number / מספר יום; else «Day 0» / «יום 0» in the name) + the slot → day link (else by date). */
+    Source_Table_7: 'Festival Days',
+    Source_Field_10: 'Festival Days.Day Number',
+    Source_Field_11: 'Slots_Events.Festival Days',
 
     /** Status that counts as scheduled (one value per line). */
     Option_List_1: 'משובץ',
     /** v0.4.5: per-pill aggregation, one line per pill: «tickets = sum: Tickets Given» · «films = count» · «events = remaining».
      *  Empty = code default (tickets = sum of Tickets Given, every other pill = count). */
     Option_List_2: '',
+    /** v0.4.9: statuses the CLOCK target slot may have (one per line). Empty = any status. */
+    Option_List_4: '',
+    /** v0.4.9: festival day number the clock counts to (Festival Days day number / «Day N» name). Default 0. */
+    Number_1: 0,
 
-    /** Fallback target when no משובץ slot is found: 24.10.2026 20:00 Israel time. */
+    /** Fallback target when no slot is found: 24.10.2026 20:00 Israel time. */
     Date_1: '2026-10-24T17:00:00.000Z',
-    /** Cutoff: first festival day (Israel date). משובץ slots starting earlier are ignored by the timer. */
+    /** Cutoff: first festival day (Israel date) — used only when no Festival Days table is found (pre-v0.4.9 rule). */
     Date_2: '2026-10-31',
 
     /** Accent: hover border / hover label (the owner 23:35: wave palette, not crimson). */

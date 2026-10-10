@@ -1,0 +1,26 @@
+# csf-timeline
+## v0.1.0 (CUT 1, read-only core) — released to PROD <block-id-redacted> on 2026-10-09 23:56 IDT
+See /workspace/csf-demo-v13/PROD-RELEASE-TIMELINE-V010-2026-10-10.md
+## v0.2.0 (CUT 2) — planned: drag-create, move/resize with undo, column drag reorder + menu
+## v0.1.1 — released 2026-10-10 00:02 IDT (Critic REVISE fixes: column widths, lens magnifier, window fits content)
+## v0.2.0 (CUT 2) — drag-create (15-min snap, popover, slot picker for borrowed-time tables, festival-day auto-link), move/resize with 6 s undo toast (pause on hover, ✕), ⠿ column reorder + ⋯ menu (per user), permission + field checks before every write
+
+## v0.2.1 — resizable column width (drag the header edge, per user, double-click reset, min 140, keyboard ←/→ ±20, Del reset) + vertical scrolling (wheel anywhere on the element scrolls the grid, visible scrollbar, sticky header/filters/window, zoom no longer pumps when the window height changes)
+
+## v0.2.2 — the owner's 01:11 edits: full-width day separators (above lodging bars, canvas ≥ viewport), CSF base palette (Countdown v0.4.2 hues on cream, teal hover), opens on 31.10 (nearest Festival Days date otherwise), one inline jump control (calendar date + time), hour labels = grid lines at every resolution, card names open the record in the grid AND the cross-section window, empty columns collapse even on a fully empty day, field-aware time zones (GMT-clock fields) + now line + «עכשיו» outside the range keeps the clock, cross-section toggle moves nothing (reserved window box)
+
+## v0.2.3 — the owner 06:53 + 08:11: Airtable SDK palette (Critic option B) across the WHOLE chrome (title, banner, separators, pills, buttons, clock, toggles, headers, ruler, strips, scrollbars) via colorUtils.getHexForColor at runtime; Option_List_6 colour = SDK fill name, line = <hue>Dark1; card text #444444; redDark1 only for Now + cross-section; prep/wrap days cyanLight2/yellowLight2. Band: the lens owns the card head (title once). Strips: all-day-only columns go to the side strips while the day's all-day row is off screen.
+
+## v0.2.4 — the owner 09:09–09:21: cross-section window in the flow (column headers slide down below it, grid-template-rows slide, centre time kept, fixed card rows so scrolling never moves the headers; toggle and everything above it never move). Window pills: title + table only (no time), text −20%, less padding/gap. Table pills left of the toggle (label Content_Text_9): ✕ hides a table (collapses to the far left, click to bring back), ▾ multi-select checkbox list of the table's filter-field values; window filters ADD to the timeline filters (AND), «הכל» = back to exactly the timeline; saved per user. Big crimson day + clock in the centre of the banner. Header tabs: no dot, ⠿ at the far right. Per-table filter in the right pane (field + is any of/is none of + values|values), fallback Extension_Config Filter_N/Filter_Operator_N/Filter_Value_N (N=1–5, 8, 10).
+
+## v0.2.5 — the owner 09:20: per-column filters. A funnel on every header tab opens that table's filter menu: field chooser (מיקום / אדם / סרט / סטטוס — the former global facets, now per column — plus every select/link field of the table), is any of / is none of, multi-select checkbox list with counts, «נקה», «ברירת מחדל». Active funnel = SDK grayDark1 + count. Column filters narrow the timeline and so the cross-section; window pill filters stay additive. Right pane / Filter_N values are the defaults behind the menus; user choices saved per user. Top-bar facet pills and the «סינון» label removed (search, resolution, תצוגה, תחומים stay).
+
+## v0.2.6 — the owner 10:36 / 10:41 / 10:42
+- Cross-section band on the timeline: the part of a card inside the band shows ONLY the record name, magnified (no time). Crowded (overlapping lanes) or too long for a line → vertical (writing-mode vertical-rl) and smaller (≥ 9px); a short wide slice → smaller horizontal lines; a measure-and-shrink pass before paint guarantees it fits; ellipsis only as the last resort, full name on hover.
+- Column header: IDENTICAL build on every table type (incl. all-day-only, lodging, borrowed-time): ⠿ (far right) · name · count · funnel · [⇤ shrink to strip · ⋯ · ✕ hide]. ⋯ sits right next to ✕ in one group. A control that can't act is shown disabled with a tooltip (funnel with no filterable values, ✕ on the last shown column). Two-row tab so names never truncate; all-day-only width 118 → 150.
+- ✕ now HIDES a column (restore from «תחומים»); ⇤ is the old shrink-to-strip.
+- Cross-section window pills: ▾ · ⇤ · ✕ in the header order. ⇤ = narrow strip at the far left (click re-expands), ✕ = hidden from the window («הכל» restores). Saved per user.
+- «כווץ עמודות ריקות» and «כווץ שעות ריקות» both default ON. A user's own choice is kept; the pre-v0.2.6 auto-saved compress=false is not treated as a choice.
+- Fix: with compress ON, «עכשיו»/«קפיצה» show the exact target minute (no 12:00 → 12:04 drift).
+
+## v0.2.8 — the owner 12:17: the cross-section time snaps to the nearest 5 min (13:07 → 13:05, 13:08 → 13:10, x:x7.5 up). One plan (xsPlan) drives the band clock, the axis time tag, the band position (its centre sits on the rounded time) and the minute range the window picks items from. DST-safe (wall-clock minutes), works with compress ON. Includes v0.2.7 (status panel, other worker), first released with this version.

@@ -59,7 +59,7 @@ const rec = (id: string, cells: Record<string, Cell>) => ({
         return v === null || v === undefined ? '' : typeof v === 'boolean' ? (v ? 'checked' : '') : String(v);
     },
 });
-const cfgT = mkTable('tblCFGCFGCFGCFGCF', 'Extension Config', ['Extension', 'Variant', 'Title', 'Content_Text_3', 'Source_Table_4', 'Option_List_1', 'Date_1', 'Date_2', 'Color_3', 'Filter_1', 'Filter_Operator_1', 'Filter_Value_1', 'Use_Defaults_Only', 'Slot_Map', 'Code_Version', 'Mapping_Image', 'GitHub_URL']);
+const cfgT = mkTable('tblCFGCFGCFGCFGCF', 'Extension Config', ['Extension', 'Variant', 'Title', 'Content_Text_3', 'Source_Table_4', 'Option_List_1', 'Date_1', 'Date_2', 'Color_3', 'Filter_1', 'Filter_Operator_1', 'Filter_Value_1', 'Use_Defaults_Only', 'Slot_Map', 'Code_Version', 'Attachment_Mapping_Image', 'GitHub_URL']);
 const filmsT = mkTable('tblFILMFILMFILMFI', 'Films 2026', ['Name']);
 const base = {
     tables: [cfgT, filmsT],
@@ -80,12 +80,12 @@ function render(records: unknown[], configTable?: unknown, w = false, variant = 
 const img = (n: string) => ({id: 'att' + n, url: `https://dl.airtable.com/${n}.png`, filename: `${n}.png`, type: 'image/png', thumbnails: {large: {url: `https://dl.airtable.com/${n}-L.png`}}});
 test('hook v3.2: 269-slot FIELD_ORDER untouched; Mapping_Image / GitHub_URL are known extras appended after it', () => {
     assert.equal(E.FIELD_ORDER.length, 269);
-    assert.ok(!E.FIELD_ORDER.includes('Mapping_Image') && !E.FIELD_ORDER.includes('GitHub_URL'));
+    assert.ok(!E.FIELD_ORDER.includes('Attachment_Mapping_Image') && !E.FIELD_ORDER.includes('Mapping_Image') && !E.FIELD_ORDER.includes('GitHub_URL'));
     assert.deepEqual(E.KNOWN_FIELDS.slice(0, 269), [...E.FIELD_ORDER]);
-    assert.deepEqual(E.KNOWN_FIELDS.slice(269), ['Mapping_Image', 'GitHub_URL']);
+    assert.deepEqual(E.KNOWN_FIELDS.slice(269), ['Attachment_Mapping_Image', 'GitHub_URL']); // v0.4.7: renamed (12:57)
 });
 test('cfg.mapping(): default row files + GitHub_URL, large thumbnails', () => {
-    const cfg = render([rec('recD', {Extension: 'countdown-homescreen', Mapping_Image: [img('map')], GitHub_URL: 'https://github.com/o/r/tree/main/countdown'})]);
+    const cfg = render([rec('recD', {Extension: 'countdown-homescreen', Attachment_Mapping_Image: [img('map')], GitHub_URL: 'https://github.com/o/r/tree/main/countdown'})]);
     const m = cfg.mapping();
     assert.equal(m.from, 'default');
     assert.deepEqual(m.files, [{url: 'https://dl.airtable.com/map.png', filename: 'map.png', thumb: 'https://dl.airtable.com/map-L.png', type: 'image/png'}]);
@@ -93,8 +93,8 @@ test('cfg.mapping(): default row files + GitHub_URL, large thumbnails', () => {
     assert.equal(m.imageField, true);
 });
 test('cfg.mapping(): Variant row wins, empty Variant cell falls back to the default row', () => {
-    const d = rec('recD', {Extension: 'countdown-homescreen', Mapping_Image: [img('d')], GitHub_URL: 'https://github.com/d'});
-    let m = render([d, rec('recV', {Extension: 'countdown-homescreen', Variant: 'kiosk', Mapping_Image: [img('v')]})], undefined, false, 'kiosk').mapping();
+    const d = rec('recD', {Extension: 'countdown-homescreen', Attachment_Mapping_Image: [img('d')], GitHub_URL: 'https://github.com/d'});
+    let m = render([d, rec('recV', {Extension: 'countdown-homescreen', Variant: 'kiosk', Attachment_Mapping_Image: [img('v')]})], undefined, false, 'kiosk').mapping();
     assert.equal(m.from, 'variant');
     assert.equal(m.files[0].filename, 'v.png');
     assert.equal(m.github, 'https://github.com/d');
@@ -103,16 +103,16 @@ test('cfg.mapping(): Variant row wins, empty Variant cell falls back to the defa
 });
 test('Door 2 stays OFF with the new fields present', async () => {
     writes = 0;
-    render([rec('recD', {Extension: 'countdown-homescreen', Code_Version: '0.0.1', Mapping_Image: [img('x')]})]);
+    render([rec('recD', {Extension: 'countdown-homescreen', Code_Version: '0.0.1', Attachment_Mapping_Image: [img('x')]})]);
     await new Promise(r => setTimeout(r, 10));
     assert.equal(writes, 0);
 });
 test('index: both toggles in the right pane; MappingPanel next to StatusPanel; shared files = master', () => {
     const idx = readFileSync(new URL('../frontend/index.tsx', import.meta.url), 'utf8');
-    assert.match(idx, /statusToggleProperty\(\), mappingToggleProperty\(\)/);
+    assert.match(idx, /statusToggleProperty\(\), mappingToggleProperty\(\)/); // v0.4.7: + editToggleProperty()
     assert.match(idx, /<MappingPanel on=\{mappingOn\} configTable=\{status\.configTable\} record=\{status\.record\} variantRecord=\{status\.variantRecord\}/);
     assert.match(idx, /mappingOn=\{isMappingOn\(P\[MAPPING_TOGGLE_KEY\]\)\}/);
-    assert.equal(S.MAPPING_TOGGLE_LABEL, 'show mapping · Extension_Config.Mapping_Image');
-    for (const f of ['statusCore.ts', 'StatusPanel.tsx', 'MappingPanel.tsx'])
+    assert.equal(S.MAPPING_TOGGLE_LABEL, 'show mapping · Extension_Config.Attachment_Mapping_Image');
+    for (const f of ['statusCore.ts', 'StatusPanel.tsx', 'MappingPanel.tsx', 'ConfigEdit.tsx'])
         assert.equal(readFileSync(new URL(`../frontend/${f}`, import.meta.url), 'utf8'), readFileSync(`/workspace/csf-extension-config/status-panel/${f}`, 'utf8'), f);
 });

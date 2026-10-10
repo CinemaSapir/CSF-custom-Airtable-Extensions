@@ -1,4 +1,4 @@
-// CSF shared «מצב חיבור» status panel — view (status-panel v2: + Mapping_Image / GitHub_URL line). Same file in every extension; see statusCore.ts.
+// CSF shared «מצב חיבור» status panel — view (status-panel v3: + Attachment_Mapping_Image / GitHub_URL line). Same file in every extension; see statusCore.ts.
 // Read-only: useRecords on the config table (only while the panel is ON) to report row count / Extension values.
 import {useState} from 'react';
 import {useRecords} from '@airtable/blocks/interface/ui';
@@ -147,7 +147,7 @@ function Body(p: StatusPanelProps & {rows: ConfigRow[] | null; hasExtField?: boo
                     )}
                     {p.mapping && p.mapping.state !== 'no-table' && (
                         <div>
-                            קבצי מיפוי (<code>Mapping_Image</code>):{' '}
+                            קבצי מיפוי (<code>Attachment_Mapping_Image</code>):{' '}
                             <b className={p.mapping.state === 'ok' ? 'csfst-ok' : 'csfst-bad'}>{yn(p.mapping.state === 'ok')}</b> {p.mapping.hint} · <code>GitHub_URL</code>:{' '}
                             {p.mapping.github ? (
                                 <a href={p.mapping.github} target="_blank" rel="noopener noreferrer">

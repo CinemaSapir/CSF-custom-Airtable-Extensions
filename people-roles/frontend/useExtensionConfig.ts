@@ -137,7 +137,10 @@ export const F = {
 
 /** v3.2 (2026-10-10): human-maintained reference fields, read-only (the code never writes them). Deliberately NOT part of the
  *  269-slot FIELD_ORDER, so the Omni prompt order, FIELD_ORDER.length and the Slot_Map sort stay exactly as they were. */
-export const EXTRA_FIELDS = {mappingImage: 'Mapping_Image', githubUrl: 'GitHub_URL'} as const;
+export const EXTRA_FIELDS = {mappingImage: 'Attachment_Mapping_Image', githubUrl: 'GitHub_URL'} as const;
+/** v3.3 (2026-10-10 12:57): the mapping field was renamed Mapping_Image → Attachment_Mapping_Image; the old name is still read
+ *  (loose) as a fallback so tables that were not renamed yet keep working. Not part of KNOWN_FIELDS. */
+export const LEGACY_FIELDS = {mappingImage: 'Mapping_Image'} as const;
 
 const triple = (n: number, ...prefixes: string[]) =>
     Array.from({length: n}, (_, i) => prefixes.map(p => (p.includes('#') ? p.replace('#', String(i + 1)) : `${p}_${i + 1}`))).flat();
@@ -278,7 +281,7 @@ export type ExtensionConfig = {
     ref: (slot: RefSlot) => ResolvedRef;
     options: (slot: OptionSlot) => OptionRow[];
     attachments: (slot: AttachmentSlot) => Array<{url: string; filename: string}>;
-    /** v3.2: Mapping_Image (Variant row → default row) + GitHub_URL, read-only. imageField/githubField = field visible to the element */
+    /** v3.2/v3.3: Attachment_Mapping_Image (old name Mapping_Image as fallback; Variant row → default row) + GitHub_URL, read-only. imageField/githubField = field visible to the element */
     mapping: () => {
         files: Array<{url: string; filename: string; thumb: string | null; type: string}>;
         from: 'variant' | 'default' | null;
@@ -766,8 +769,17 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
     const options = (slot: OptionSlot) => parseOptionList(rawOf(slot));
     const mapping = () => {
         const has = (n: string) => !!table && !!table.getFieldByNameIfExists(n);
+        // Attachment_Mapping_Image exact → loose → the old Mapping_Image exact → loose
+        const mapName = (() => {
+            if (!table) return EXTRA_FIELDS.mappingImage as string;
+            for (const want of [EXTRA_FIELDS.mappingImage, LEGACY_FIELDS.mappingImage]) {
+                const f = table.getFieldByNameIfExists(want) ?? table.fields.find(x => looseName(x.name) === looseName(want));
+                if (f) return f.name;
+            }
+            return EXTRA_FIELDS.mappingImage as string;
+        })();
         const files = (r: AirtableRecord | null) => {
-            const v = cellRaw(r, EXTRA_FIELDS.mappingImage, table);
+            const v = cellRaw(r, mapName, table);
             return Array.isArray(v)
                 ? (v as Array<{url?: unknown; filename?: unknown; type?: unknown; thumbnails?: {large?: {url?: unknown}}}>).map(a => ({
                       url: String(a.url ?? ''),
@@ -784,7 +796,7 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
             files: fv.length ? fv : fd,
             from: fv.length ? ('variant' as const) : fd.length ? ('default' as const) : null,
             github: gv || cellString(record, EXTRA_FIELDS.githubUrl, table),
-            imageField: has(EXTRA_FIELDS.mappingImage),
+            imageField: has(mapName),
             githubField: has(EXTRA_FIELDS.githubUrl),
         };
     };

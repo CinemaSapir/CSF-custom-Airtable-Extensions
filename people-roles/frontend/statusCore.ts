@@ -4,8 +4,11 @@
 // (published view too, not only edit mode). Read-only: the panel never writes anything.
 // v2 (2026-10-10): + mapping panel. Right-pane boolean «show mapping · Extension_Config.Mapping_Image» (default OFF) → the
 // matched row's Mapping_Image attachments (Variant row → default row) + GitHub_URL. Also reported in «מצב חיבור».
+// v3 (2026-10-10 12:57): the field is Attachment_Mapping_Image (loose fallback: the old name Mapping_Image); toggle label
+// «show mapping · Extension_Config.Attachment_Mapping_Image». + «עריכה ישירה · Extension_Config» (ConfigEdit.tsx): click-to-edit
+// text slots and Option_List editors that write ONLY the matched Extension_Config row's cell (Variant row, else default row).
 
-export const STATUS_PANEL_VERSION = 'status-panel v2';
+export const STATUS_PANEL_VERSION = 'status-panel v3';
 export const STATUS_TOGGLE_KEY = 'showStatusPanel';
 export const STATUS_TOGGLE_LABEL = 'show מצב חיבור · Extension_Config';
 
@@ -131,14 +134,24 @@ export function overallOk(m: StatusModel): boolean {
 export const yn = (b: boolean) => (b ? '✓' : '✗');
 
 // ---------------------------------------------------------------------------
-// v2: mapping attachments (Extension_Config.Mapping_Image + GitHub_URL) — read-only, human-maintained fields,
+// v2/v3: mapping attachments (Extension_Config.Attachment_Mapping_Image + GitHub_URL) — read-only, human-maintained fields,
 // deliberately NOT part of the 269-slot FIELD_ORDER.
 // ---------------------------------------------------------------------------
 export const MAPPING_TOGGLE_KEY = 'showMappingPanel';
-export const MAPPING_TOGGLE_LABEL = 'show mapping · Extension_Config.Mapping_Image';
-export const MAPPING_FIELD = 'Mapping_Image';
+export const MAPPING_TOGGLE_LABEL = 'show mapping · Extension_Config.Attachment_Mapping_Image';
+/** v3: the field name on PROD / DEMO. Read first; MAPPING_FIELD_LEGACY is the loose fallback (tables not renamed yet). */
+export const MAPPING_FIELD = 'Attachment_Mapping_Image';
+export const MAPPING_FIELD_LEGACY = 'Mapping_Image';
 export const GITHUB_FIELD = 'GitHub_URL';
 
+/** Field resolution order: exact Attachment_Mapping_Image → loose → exact Mapping_Image → loose. null = none visible. */
+export function pickMappingFieldName(names: readonly string[]): string | null {
+    for (const want of [MAPPING_FIELD, MAPPING_FIELD_LEGACY]) {
+        const hit = names.find(n => n === want) ?? names.find(n => looseKey(n) === looseKey(want));
+        if (hit) return hit;
+    }
+    return null;
+}
 /** The right-pane property, identical in every extension (same style as the status toggle). Default OFF. */
 export function mappingToggleProperty() {
     return {key: MAPPING_TOGGLE_KEY, label: MAPPING_TOGGLE_LABEL, type: 'boolean' as const, defaultValue: false};
@@ -213,9 +226,9 @@ export function pickMapping(i: {
             : state === 'no-row'
               ? `אין שורה ל-«${i.slug}» בטבלת Extension_Config — אין קבצי מיפוי להצגה`
               : state === 'no-field'
-                ? 'השדה Mapping_Image לא מופעל לאלמנט — יש להפעיל אותו ברשימת השדות של Extension_Config באלמנט'
+                ? 'השדה Attachment_Mapping_Image לא מופעל לאלמנט — יש להפעיל אותו ברשימת השדות של Extension_Config באלמנט'
                 : state === 'empty'
-                  ? 'השדה Mapping_Image ריק בשורה (וגם בשורת ברירת המחדל) — יש לצרף אליו את קובץ המיפוי'
+                  ? 'השדה Attachment_Mapping_Image ריק בשורה (וגם בשורת ברירת המחדל) — יש לצרף אליו את קובץ המיפוי'
                   : `${files.length} ${files.length === 1 ? 'קובץ' : 'קבצים'} מ${from === 'variant' ? 'שורת ה-Variant' : 'שורת ברירת המחדל'}`;
     return {state, files, from, github, githubFrom, githubState: !i.githubField ? 'no-field' : github ? 'ok' : 'empty', hint};
 }
@@ -224,3 +237,75 @@ export const GITHUB_HINT = {
     empty: 'GitHub_URL ריק',
     ok: '',
 } as const;
+
+// ---------------------------------------------------------------------------
+// v3: «עריכה ישירה · Extension_Config» — inline editing of text slots + Option_List editors (ConfigEdit.tsx).
+// Writes ONLY one cell of the matched Extension_Config row: the Variant row when it exists, else the default row.
+// ---------------------------------------------------------------------------
+export const EDIT_TOGGLE_KEY = 'inlineEditConfig';
+export const EDIT_TOGGLE_LABEL = 'עריכה ישירה · Extension_Config';
+export function editToggleProperty() {
+    return {key: EDIT_TOGGLE_KEY, label: EDIT_TOGGLE_LABEL, type: 'boolean' as const, defaultValue: false};
+}
+export const isEditOn = (v: unknown): boolean => v === true;
+
+const TEXT_SLOT_RE =
+    /^(Title|Heading_\d+|Table_Heading_\d+|Content_Text_\d+|Helper_Text_\d+|Button_Text_\d+|Tab_Label_\d+|Toggle_Label_\d+|Filter_Label_\d+|Dropdown_Label_\d+|Empty_State_Text_\d+|Error_Text_\d+)$/;
+/** Text slots that may be edited inline (labels / texts only — never colours, icons, URLs, filters, refs, numbers). */
+export const isEditableTextSlot = (slot: string): boolean => TEXT_SLOT_RE.test(slot);
+export const isOptionListSlot = (slot: string): boolean => /^Option_List_\d+$/.test(slot);
+
+/** The ONE row a save may write: Variant row if it exists, else the default row; null → no row (ask before creating). */
+export function writeTarget<R extends {id: string}>(variantRow: R | null | undefined, defaultRow: R | null | undefined): {row: R | null; which: 'variant' | 'default' | 'none'} {
+    if (variantRow) return {row: variantRow, which: 'variant'};
+    if (defaultRow) return {row: defaultRow, which: 'default'};
+    return {row: null, which: 'none'};
+}
+/** Field types a text save may write (anything else is refused with a reason). */
+export const WRITABLE_TEXT_TYPES = ['singleLineText', 'multilineText', 'richText'] as const;
+export const isWritableTextType = (t: string): boolean => (WRITABLE_TEXT_TYPES as readonly string[]).includes(t);
+
+/** Cell value to write: '' / whitespace-only → null (= the cell is cleared and the next layer is used). */
+export function cellToWrite(v: string): string | null {
+    const s = v.replace(/\r\n?/g, '\n');
+    return s.trim() === '' ? null : s;
+}
+
+/** Option_List text ⇄ lines (one option per line; empty lines dropped). */
+export const splitLines = (v: string): string[] =>
+    v
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean);
+export const joinLines = (lines: readonly string[]): string => lines.map(l => l.trim()).filter(Boolean).join('\n');
+export type ListOp = {op: 'add'; text: string} | {op: 'rename'; i: number; text: string} | {op: 'remove'; i: number} | {op: 'move'; i: number; to: number};
+export function applyListOp(lines: readonly string[], o: ListOp): string[] {
+    const out = [...lines];
+    if (o.op === 'add') {
+        if (o.text.trim()) out.push(o.text.trim());
+    } else if (o.i < 0 || o.i >= out.length) return out;
+    else if (o.op === 'rename') out[o.i] = o.text;
+    else if (o.op === 'remove') out.splice(o.i, 1);
+    else if (o.op === 'move') {
+        const to = Math.max(0, Math.min(out.length - 1, o.to));
+        const [x] = out.splice(o.i, 1);
+        out.splice(to, 0, x);
+    }
+    return out;
+}
+
+/** On-screen text → slot, for the inline layer: only unique, non-templated values of ≥2 chars (ambiguous values are left out). */
+export function inlineCandidates(values: ReadonlyArray<readonly [slot: string, value: string]>): Map<string, string> {
+    const seen = new Map<string, string | null>();
+    for (const [slot, raw] of values) {
+        if (!isEditableTextSlot(slot)) continue;
+        const v = (raw ?? '').trim();
+        if (v.length < 2 || /[{}]|\*\*|\n/.test(v)) continue;
+        seen.set(v, seen.has(v) && seen.get(v) !== slot ? null : slot);
+    }
+    const out = new Map<string, string>();
+    for (const [v, slot] of seen) if (slot) out.set(v, slot);
+    return out;
+}
+export const EDIT_UNDO_MS = 6000;

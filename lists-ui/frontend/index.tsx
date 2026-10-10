@@ -38,10 +38,11 @@ import {Home, NewListModal} from './Home';
 import {ListPage} from './ListPage';
 import {VersionFooter, useToast} from './ui';
 import {CONFIG_DISPLAY_NAME, CONFIG_SLUG, DEFAULTS, DOCS, useCfg} from './cfg';
-import {CONFIG_TABLE_NAME, ExtensionConfigProvider, findConfigTable, type TableSlot} from './useExtensionConfig';
+import {CONFIG_TABLE_NAME, ExtensionConfigProvider, findConfigTable, type Slot, type TableSlot} from './useExtensionConfig';
 import {StatusPanel} from './StatusPanel';
 import {MappingPanel} from './MappingPanel';
-import {MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
+import {ConfigEditor} from './ConfigEdit';
+import {EDIT_TOGGLE_KEY, MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, editToggleProperty, isEditOn, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
 import {VERSION} from './model';
 import './style.css';
 
@@ -91,6 +92,8 @@ function getCustomProperties(base: Base) {
         statusToggleProperty(),
         // v0.6.2: shared mapping panel — Extension_Config.Mapping_Image + GitHub_URL (default OFF)
         mappingToggleProperty(),
+        // v0.6.3: «עריכה ישירה · Extension_Config» (default OFF) — inline edit of text slots / Option_List, writes ONLY the matched config row
+        editToggleProperty(),
     ];
 }
 
@@ -268,13 +271,33 @@ function Bound(props: {cp: CP; mode: Mode; slug: string; variant: string}) {
     const mapping = isMappingOn(cp[MAPPING_TOGGLE_KEY]) ? (
         <MappingPanel on configTable={cfgTable} record={cfg?.record ?? null} variantRecord={cfg?.variantRecord ?? null} slug={props.slug} />
     ) : null;
+    // v0.6.3: «עריכה ישירה · Extension_Config» (shared ConfigEditor) — writes ONLY one cell of the matched config row
+    const editor = isEditOn(cp[EDIT_TOGGLE_KEY]) ? (
+        <ConfigEditor
+            on
+            configTable={cfgTable}
+            record={cfg?.record ?? null}
+            variantRecord={cfg?.variantRecord ?? null}
+            slug={props.slug}
+            variant={props.variant}
+            slots={EDIT_SLOTS}
+            valueOf={s => (cfg ? cfg.raw(s as Slot) : String((DEFAULTS as {[k: string]: unknown})[s] ?? ''))}
+            docs={DOCS as {[slot: string]: string | undefined}}
+        />
+    ) : null;
+    const extras = (
+        <>
+            {mapping}
+            {editor}
+        </>
+    );
     if (!lists || !items) {
         return (
             <div className="app" dir="rtl" lang="he">
                 <h1>{t('Title')}</h1>
                 <p className="msg err">{t('Error_Text_2')}</p>
                 {status ? <ListsStatus info={status} T={null} F={null} lists={null} /> : null}
-                {mapping}
+                {extras}
             </div>
         );
     }
@@ -295,7 +318,7 @@ function Bound(props: {cp: CP; mode: Mode; slug: string; variant: string}) {
     const S: SourceEnv = {configTable, lookup, all: () => [...bound.values()]};
     const recordTable = asTable(cp.recordTable) ?? T.films;
     const recordId = typeof cp.recordId === 'string' ? cp.recordId : '';
-    return <Lists T={T} S={S} mode={mode} recordTableId={recordTable?.id ?? null} recordId={recordId} status={status} mapping={mapping} />;
+    return <Lists T={T} S={S} mode={mode} recordTableId={recordTable?.id ?? null} recordId={recordId} status={status} mapping={extras} />;
 }
 
 type StatusInfo = {
@@ -362,5 +385,7 @@ function ListsStatus(props: {info: StatusInfo; T: Tables | null; F: Fields | nul
         />
     );
 }
+
+const EDIT_SLOTS: readonly string[] = Object.keys(DEFAULTS);
 
 initializeBlock({interface: () => <App />});

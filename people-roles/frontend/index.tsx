@@ -27,12 +27,13 @@ import {
 } from '@airtable/blocks/interface/models';
 import './style.css';
 import {CONFIG_DISPLAY_NAME, CONFIG_SLUG, DEFAULTS, DOCS, type PRText, useCfg} from './cfg';
-import {CONFIG_TABLE_NAME, ExtensionConfigProvider, findConfigTable} from './useExtensionConfig';
+import {CONFIG_TABLE_NAME, ExtensionConfigProvider, findConfigTable, type Slot} from './useExtensionConfig';
 import {StatusPanel} from './StatusPanel';
 import {MappingPanel} from './MappingPanel';
-import {MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusSource} from './statusCore';
+import {ConfigEditor} from './ConfigEdit';
+import {EDIT_TOGGLE_KEY, MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, editToggleProperty, isEditOn, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusSource} from './statusCore';
 
-const VERSION = '0.3.2';
+const VERSION = '0.3.3';
 
 // ---------------------------------------------------------------------------
 // IDs (verified 2026-09-25 against DEMO appiN9MrP73g6R9hi with get_table_schema)
@@ -309,6 +310,8 @@ function getCustomProperties(base: Base) {
         statusToggleProperty(),
         // v0.3.2: shared mapping panel — Extension_Config.Mapping_Image + GitHub_URL (default OFF)
         mappingToggleProperty(),
+        // v0.3.3: «עריכה ישירה · Extension_Config» (default OFF) — inline edit of text slots / Option_List, writes ONLY the matched config row
+        editToggleProperty(),
     ];
 }
 
@@ -2633,6 +2636,7 @@ function App() {
                     <>
                         <Status cp={cp} slug={slug} variant={variant} />
                         <Mapping cp={cp} slug={slug} />
+                        <Edit cp={cp} slug={slug} variant={variant} />
                     </>
                 } />
         </ExtensionConfigProvider>
@@ -2797,6 +2801,30 @@ function Mapping(props: {cp: {[key: string]: unknown}; slug: string}) {
     return (
         <div dir="rtl" style={{padding: '0 12px 12px'}}>
             <MappingPanel on configTable={asTable(props.cp.configTable) ?? findConfigTable(base)} record={cfg?.record ?? null} variantRecord={cfg?.variantRecord ?? null} slug={props.slug} />
+        </div>
+    );
+}
+
+/** v0.3.3: «עריכה ישירה · Extension_Config» (shared ConfigEditor, status-panel v3) — click-to-edit text slots + Option_List editors.
+ *  Writes ONLY one cell of the matched Extension_Config row (Variant row, else default row; no row → confirm first). */
+const EDIT_SLOTS: readonly string[] = Object.keys(DEFAULTS);
+function Edit(props: {cp: {[key: string]: unknown}; slug: string; variant: string}) {
+    const base = useBase();
+    const {cfg} = useCfg();
+    if (!isEditOn(props.cp[EDIT_TOGGLE_KEY])) return null;
+    return (
+        <div dir="rtl" style={{padding: '0 12px 12px'}}>
+            <ConfigEditor
+                on
+                configTable={asTable(props.cp.configTable) ?? findConfigTable(base)}
+                record={cfg?.record ?? null}
+                variantRecord={cfg?.variantRecord ?? null}
+                slug={props.slug}
+                variant={props.variant}
+                slots={EDIT_SLOTS}
+                valueOf={s => (cfg ? cfg.raw(s as Slot) : String((DEFAULTS as {[k: string]: unknown})[s] ?? ''))}
+                docs={DOCS as {[slot: string]: string | undefined}}
+            />
         </div>
     );
 }

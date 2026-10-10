@@ -9,6 +9,7 @@ import {
     useExtensionConfig,
     type ConfigDefaults,
     type ExtensionConfig,
+    type Slot,
     type SlotDocs,
 } from './useExtensionConfig';
 import {
@@ -25,6 +26,13 @@ import {
     splitDuration,
     type SlotInput,
     type SlotsSource,
+    type FestivalDayInput,
+    DAY_DATE_ALIASES,
+    DAY_NUM_ALIASES,
+    DAY_TABLE_ALIASES,
+    SLOT_DAY_LINK_ALIASES,
+    dayNumberInName,
+    parseDayNumber,
     type TargetResult,
 } from './festivalTarget';
 import {
@@ -46,7 +54,8 @@ import {AGG_OPS, buildPills, cellNumber, parseAggList, pickAgg, type AggMode, ty
 
 import {StatusPanel} from './StatusPanel';
 import {MappingPanel} from './MappingPanel';
-import {MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusSource} from './statusCore';
+import {ConfigEditor} from './ConfigEdit';
+import {EDIT_TOGGLE_KEY, MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, editToggleProperty, isEditOn, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusSource} from './statusCore';
 import {
     FILTER_OPS,
     PILLS,
@@ -113,6 +122,10 @@ const AGG_NAMES: Record<PillKey, readonly string[]> = {
 const defaultTableName = (k: PillKey) => PILLS.find(p => p.key === k)!.defaultTable;
 
 /** Right-pane properties (top-level → stable identity). Per pill: table · field · operator · value. */
+/** v0.4.9: right-pane clock target (pane → Extension_Config → code default). */
+const TARGET_DAY_KEY = 'clockTargetDay';
+const CLOCK_STATUS_KEY = 'clockStatuses';
+
 function getCustomProperties(base: Base) {
     try {
         const cfgT = findConfigTable(base);
@@ -122,7 +135,11 @@ function getCustomProperties(base: Base) {
             type: 'table' as const,
             defaultValue: cfgT ?? undefined,
         };
-        return [cfgProp, statusToggleProperty(), mappingToggleProperty(), ...PILLS.flatMap(p => {
+        const clockProps = [
+            {key: TARGET_DAY_KEY, label: 'שעון: מספר יום היעד ב-Festival Days (ריק = Extension_Config Number_1 / 0)', type: 'string' as const, defaultValue: ''},
+            {key: CLOCK_STATUS_KEY, label: 'שעון: סטטוסים למשבצת היעד (| בין ערכים; ריק = Option_List_4 / כל סטטוס)', type: 'string' as const, defaultValue: ''},
+        ];
+        return [cfgProp, statusToggleProperty(), mappingToggleProperty(), editToggleProperty(), ...clockProps, ...PILLS.flatMap(p => {
             const keys = propKeys(p.key);
             const labels = propLabels(PILL_LABEL[p.key], p.key);
             const t = p.defaultTable ? findTable(base, p.defaultTable, PILL_TABLE_ALIASES[p.key]) : null;
@@ -163,6 +180,8 @@ function getCustomProperties(base: Base) {
 /** CONFIG_DEFAULTS as the hook's code-default layer (Date_2 = Israel midnight of the first day). */
 // v0.4.4: DST-aware — 31.10 00:00 Israel = 30.10 22:00Z (UTC+2 after 25.10); v0.4.1–0.4.3 used +03:00 → 30.10 23:00 Israel.
 const HOOK_DEFAULTS: ConfigDefaults = {...D, Date_2: new Date(israelMidnightMs(D.Date_2)).toISOString()} as ConfigDefaults;
+/** v0.4.7: slots offered by «עריכה ישירה» (the code defaults' keys; ConfigEditor keeps only text + Option_List slots) */
+const EDIT_SLOTS: readonly string[] = Object.keys(D);
 const HOOK_DOCS: SlotDocs = {
     Title: 'כותרת מעל השעון',
     Content_Text_1: 'תווית אריח כרטיסי הזמנה (סכום Tickets Given)',
@@ -188,9 +207,14 @@ const HOOK_DOCS: SlotDocs = {
     Source_Field_5: 'סיום',
     Source_Field_6: 'קישור סרט↔משבצת',
     Source_Field_8: 'קישור משבצת↔פרויקט',
-    Option_List_1: 'סטטוסים שנחשבים «משובץ» (שורה לכל ערך)',
+    Option_List_1: 'סטטוסים שנחשבים «משובץ» לספירות (שורה לכל ערך)',
+    Option_List_4: 'סטטוסים למשבצת היעד של השעון (שורה לכל ערך; ריק = כל סטטוס)',
+    Number_1: 'מספר יום היעד של השעון ב-Festival Days (ברירת מחדל 0)',
+    Source_Table_7: 'טבלת ימי הפסטיבל (Festival Days)',
+    Source_Field_10: 'שדה מספר היום ב-Festival Days',
+    Source_Field_11: 'קישור משבצת↔יום (ריק = לפי תאריך)',
     Date_1: 'יעד גיבוי',
-    Date_2: 'היום הראשון של הפסטיבל',
+    Date_2: 'היום הראשון של הפסטיבל (רק בלי Festival Days)',
     Color_1: 'צבע הדגשה',
     Color_2: 'רקע',
     Color_3: 'גל 1',
@@ -310,9 +334,9 @@ const looseKey = (s: string) => norm(s).replace(/[\s_\-.]+/g, '');
 const CONFIG_FIELDS_USED = [
     'Extension', 'Variant', 'Title',
     ...[1, 2, 3, 4, 5, 6, 7, 8, 10].map(n => `Content_Text_${n}`),
-    ...[1, 2, 3, 4, 5, 6].map(n => `Source_Table_${n}`),
-    ...[1, 3, 4, 5, 6, 8, 9].map(n => `Source_Field_${n}`),
-    'Option_List_1', 'Option_List_2', 'Date_1', 'Date_2',
+    ...[1, 2, 3, 4, 5, 6, 7].map(n => `Source_Table_${n}`),
+    ...[1, 3, 4, 5, 6, 8, 9, 10, 11].map(n => `Source_Field_${n}`),
+    'Option_List_1', 'Option_List_2', 'Option_List_4', 'Number_1', 'Date_1', 'Date_2',
     ...[1, 2, 3, 4, 5, 6, 7].map(n => `Color_${n}`),
     ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].flatMap(n => [`Filter_${n}`, `Filter_Operator_${n}`, `Filter_Value_${n}`]),
     'Use_Defaults_Only',
@@ -466,7 +490,7 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
         return t;
     };
     /** Source_Field_N (Table.Field) → field name part; a bad/empty cell falls back to the code default. */
-    const fp = (slot: 'Source_Field_1' | 'Source_Field_3' | 'Source_Field_4' | 'Source_Field_5' | 'Source_Field_6' | 'Source_Field_8' | 'Source_Field_9') => {
+    const fp = (slot: 'Source_Field_1' | 'Source_Field_3' | 'Source_Field_4' | 'Source_Field_5' | 'Source_Field_6' | 'Source_Field_8' | 'Source_Field_9' | 'Source_Field_10' | 'Source_Field_11') => {
         try {
             return fieldPart(cfg.raw(slot) || D[slot]);
         } catch {
@@ -486,8 +510,34 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
               status: findByLooseName(slotsT.fields, [fp('Source_Field_3'), ...FIELD_ALIASES.status]),
               films: findLink(slotsT, SLOT_FILM_LINK_ALIASES),
               project: findLink(slotsT, [fp('Source_Field_8'), ...SLOT_PROJECT_LINK_ALIASES]),
+              days: findLink(slotsT, [fp('Source_Field_11'), ...SLOT_DAY_LINK_ALIASES]),
           }
         : null;
+    // v0.4.9: Festival Days (Source_Table_7 → by name) for the clock's Day N
+    const daysT: Table | null = (() => {
+        try {
+            const c = cfg.raw('Source_Table_7').trim() ? cfg.table('Source_Table_7') : null;
+            return c ?? findTable(base, D.Source_Table_7, DAY_TABLE_ALIASES);
+        } catch {
+            return findTable(base, D.Source_Table_7, DAY_TABLE_ALIASES);
+        }
+    })();
+    const dayNumF = daysT ? findByLooseName(daysT.fields, [fp('Source_Field_10'), ...DAY_NUM_ALIASES]) : null;
+    const dayDateF = daysT ? findByLooseName(daysT.fields, DAY_DATE_ALIASES) : null;
+    const paneDay = String(P[TARGET_DAY_KEY] ?? '').trim();
+    const targetDay = parseDayNumber(paneDay || (() => { try { return cfg.raw('Number_1'); } catch { return ''; } })());
+    const targetDayVia = paneDay && /^-?\d+$/.test(paneDay) ? 'חלונית' : cfg.status === 'ok' && cfg.raw('Number_1').trim() && cfg.raw('Number_1').trim() !== String(D.Number_1) ? 'Extension_Config Number_1' : 'ברירת מחדל';
+    const clockStatuses = (() => {
+        const pane = String(P[CLOCK_STATUS_KEY] ?? '').split(/[|\n]/).map(x => x.trim()).filter(Boolean);
+        if (pane.length) return {list: pane, via: 'חלונית'};
+        try {
+            const c = cfg.options('Option_List_4').map(o => o.value.trim()).filter(Boolean);
+            if (c.length) return {list: c, via: 'Extension_Config Option_List_4'};
+        } catch {
+            /* default */
+        }
+        return {list: [] as string[], via: 'ברירת מחדל'};
+    })();
     const filmSlotsF = findLink(filmsT, [fp('Source_Field_6'), ...FILM_SLOT_LINK_ALIASES]);
     const projectSlotsF = findLink(projectsT, PROJECT_SLOT_LINK_ALIASES);
     const aggLines = (() => {
@@ -499,8 +549,10 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
     })();
 
     return (
-        <AllRecs tables={PILLS.map(p => tablesByPill[p.key])}>
+        <AllRecs tables={[...PILLS.map(p => tablesByPill[p.key]), daysT]}>
             {recList => {
+                const dayRecs = recList[PILLS.length];
+                const days = daysT && dayRecs ? readDays(dayRecs, dayNumF, dayDateF) : null;
                 const recsByPill = {} as Record<PillKey, readonly AtRecord[] | null>;
                 PILLS.forEach((p, i) => (recsByPill[p.key] = recList[i]));
                 const cfgFilters = readConfigFilters(cfg);
@@ -576,9 +628,15 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
                         ['משבצות · סיום', f?.end, fp('Source_Field_5'), false],
                         ['קישור סרט↔משבצת', f?.films ?? filmSlotsF, fp('Source_Field_6'), false],
                         ['קישור משבצת↔פרויקט', f?.project ?? projectSlotsF, fp('Source_Field_8'), false],
+                        ['שעון: קישור משבצת↔יום', f?.days, fp('Source_Field_11'), false],
                     ];
                     for (const [label, fld, want, required] of sf)
                         sources.push({label, table: slotsT.name, field: fld?.name ?? want, via: fld ? 'לפי שם' : 'לא נמצא', ok: !!fld || !required, note: !fld ? (required ? 'חובה לשעון' : 'רשות') : null});
+                }
+                sources.push({label: 'שעון: Festival Days · טבלה', table: daysT?.name ?? null, via: daysT ? 'Source_Table_7 / לפי שם' : 'לא נמצאה', ok: true, note: daysT ? null : 'בלי הטבלה: היום הראשון = Date_2 (כלל ישן)'});
+                if (daysT) {
+                    sources.push({label: 'שעון: מספר יום', table: daysT.name, field: dayNumF?.name ?? fp('Source_Field_10'), via: dayNumF ? 'לפי שם' : 'לא נמצא → לפי השם («Day 0» / «יום 0»)', ok: true, note: null});
+                    sources.push({label: 'שעון: תאריך היום', table: daysT.name, field: dayDateF?.name ?? 'Date', via: dayDateF ? 'לפי שם' : 'לא נמצא', ok: !!dayDateF || !!f?.days, note: !dayDateF && !f?.days ? 'אין תאריך ואין קישור — אי אפשר לשייך משבצות ליום' : null});
                 }
                 if (aggLines.bad.length)
                     sources.push({label: 'Option_List_2', table: null, via: 'Extension_Config', ok: false, note: `שורות לא תקינות: ${aggLines.bad.join(', ')} (פורמט: tickets = sum: Tickets Given)`});
@@ -613,7 +671,8 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
                     invitations: null,
                     tickets: null,
                 };
-                return <Screen source={source} input={input} preps={preps} live={live} status={status} mappingOn={isMappingOn(P[MAPPING_TOGGLE_KEY])} />;
+                const target = {days, targetDay, targetDayVia, clockStatuses: clockStatuses.list, clockStatusesVia: clockStatuses.via};
+                return <Screen source={source} input={input} preps={preps} live={live} status={status} target={target} mappingOn={isMappingOn(P[MAPPING_TOGGLE_KEY])} edit={{on: isEditOn(P[EDIT_TOGGLE_KEY]), valueOf: s => cfg.raw(s as Slot)}} />;
             }}
         </AllRecs>
     );
@@ -738,7 +797,7 @@ function pillFilter(
     }
 }
 
-type SlotFields = {start: Field | null; end: Field | null; status: Field | null; films: Field | null; project: Field | null};
+type SlotFields = {start: Field | null; end: Field | null; status: Field | null; films: Field | null; project: Field | null; days?: Field | null};
 
 function readSource(table: Table | null, f: SlotFields | null, recs: readonly AtRecord[] | null): SlotsSource {
     if (!table || !f) return {kind: 'noTable'};
@@ -754,12 +813,37 @@ function readSource(table: Table | null, f: SlotFields | null, recs: readonly At
                     startMs: f.start ? parseDateMs(r.getCellValue(f.start)) : null,
                     endMs: f.end ? parseDateMs(r.getCellValue(f.end)) : null,
                     status: f.status ? r.getCellValueAsString(f.status) : null,
+                    dayIds: f.days ? linkIds(r.getCellValue(f.days)) : undefined,
                 }),
             ),
         };
     } catch {
         return {kind: 'ok', slots: []};
     }
+}
+
+/** v0.4.9: Festival Days rows → {id, name, dayNum, dateIso}. Day number: number cell, else «Day N» in the cell text. */
+function readDays(recs: readonly AtRecord[], numF: Field | null, dateF: Field | null): FestivalDayInput[] {
+    const out: FestivalDayInput[] = [];
+    for (const r of recs) {
+        try {
+            let dayNum: number | null = null;
+            if (numF) {
+                const v = r.getCellValue(numF);
+                dayNum = typeof v === 'number' && Number.isFinite(v) ? Math.trunc(v) : dayNumberInName(r.getCellValueAsString(numF));
+            }
+            let dateIso: string | null = null;
+            if (dateF) {
+                const v = r.getCellValue(dateF);
+                const sv = typeof v === 'string' ? v : '';
+                dateIso = /^\d{4}-\d{2}-\d{2}$/.test(sv) ? sv : sv ? (Number.isFinite(Date.parse(sv)) ? israelDate(Date.parse(sv)) : null) : null;
+            }
+            out.push({id: r.id, name: safeName(r), dayNum, dateIso});
+        } catch {
+            /* skip unreadable row */
+        }
+    }
+    return out;
 }
 
 function readCountSlots(recs: readonly AtRecord[], f: SlotFields, statuses: readonly string[]): CountSlot[] | null {
@@ -801,14 +885,20 @@ function Screen({
     live,
     status,
     mappingOn,
+    edit,
+    target,
 }: {
+    /** v0.4.9: Day N target inputs */
+    target: {days: FestivalDayInput[] | null; targetDay: number; targetDayVia: string; clockStatuses: string[]; clockStatusesVia: string};
     source: SlotsSource;
     input: CountsInput;
     preps: readonly PillPrep[];
     live: Live;
     status: Omit<Parameters<typeof StatusPanel>[0], 'filters'>;
-    /** v0.4.6: right-pane «show mapping · Extension_Config.Mapping_Image» */
+    /** v0.4.6: right-pane «show mapping · Extension_Config.Attachment_Mapping_Image» */
     mappingOn: boolean;
+    /** v0.4.7: right-pane «עריכה ישירה · Extension_Config» — writes ONLY the matched config row's cell */
+    edit: {on: boolean; valueOf: (slot: string) => string};
 }) {
     const [now, setNow] = useState(Date.now());
     useEffect(() => {
@@ -816,7 +906,14 @@ function Screen({
         return () => clearInterval(id);
     }, []);
 
-    const t = computeTarget(source, now, live.targetOpts);
+    const t = computeTarget(source, now, {...live.targetOpts, days: target.days, targetDay: target.targetDay, clockStatuses: target.clockStatuses});
+    const ti = t.info;
+    const targetNote = target.days
+        ? ti
+            ? `שעון → יום ${ti.wanted} (${target.targetDayVia}): ${ti.dayLabel ? `«${ti.dayLabel}» (${ti.dayVia === 'number' ? 'לפי מספר יום' : ti.dayVia === 'name' ? 'לפי שם היום' : 'אין יום כזה → היום המוקדם ביותר'})` : 'לא נמצא'} · משבצת ראשונה: ${ti.slotName ? `«${ti.slotName}» ${ti.slotStartMs !== null ? formatSlotWhen(ti.slotStartMs) : ''}` : '—'} · ${ti.onDay} משבצות ביום · סטטוס: ${ti.statusFilter} (${target.clockStatusesVia})`
+            : `שעון: ${t.hint ?? t.label ?? ''}`
+        : 'שעון: אין טבלת Festival Days → כלל ישן (Date_2 + Option_List_1)';
+    const statusWithTarget = {...status, notes: [...(status.notes ?? []), targetNote]};
     const clock = t.zero ? {days: 0, hours: 0, minutes: 0} : splitDuration(t.targetMs - now);
     // 'remaining' mode only (opt-in): v0.4.4 phase logic over the filtered sets
     const c = computeCounts(input, t.phase, now);
@@ -842,8 +939,19 @@ function Screen({
             configNote={live.configNote}
             statusPanel={
                 <>
-                    <StatusPanel {...status} filters={pills.map(p => p.row)} />
+                    <StatusPanel {...statusWithTarget} filters={pills.map(p => p.row)} />
                     <MappingPanel on={mappingOn} configTable={status.configTable} record={status.record} variantRecord={status.variantRecord} slug={status.slug} />
+                    <ConfigEditor
+                        on={edit.on}
+                        configTable={status.configTable}
+                        record={status.record}
+                        variantRecord={status.variantRecord}
+                        slug={status.slug}
+                        variant={status.variant}
+                        slots={EDIT_SLOTS}
+                        valueOf={edit.valueOf}
+                        docs={HOOK_DOCS as {[slot: string]: string | undefined}}
+                    />
                 </>
             }
         />

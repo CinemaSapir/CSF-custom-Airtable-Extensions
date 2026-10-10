@@ -1,5 +1,9 @@
 # Bulk sheet «קופי פייסט - הזנה מרובה» — changelog (box copy)
 
+## v0.5.3 — 2026-10-10
+- Mapping field renamed to Attachment_Mapping_Image (old Mapping_Image still read as a loose fallback); toggle «show mapping · Extension_Config.Attachment_Mapping_Image». Hook v3.3.
+- Right-pane «עריכה ישירה · Extension_Config» (default OFF): shared ConfigEditor — click-to-edit on-screen texts, a list of every text slot and an Option_List editor. Writes only one cell of the matched Extension_Config row (Variant row, else default row; no row → confirm), checkPermissionsForUpdateRecord first, 6 s undo.
+
 ## v0.5.2 — 2026-10-10
 - Right-pane «show mapping · Extension_Config.Mapping_Image» (default OFF): shared MappingPanel (status-panel v2) shows the matched row's Mapping_Image attachments (Variant row → default row; large thumbnails, click = lightbox, full URL, file name) + GitHub_URL link. Hook v3.2: Mapping_Image / GitHub_URL are read-only extras outside the 269 FIELD_ORDER. «מצב חיבור» reports both fields (Hebrew hint when not enabled / empty).
 

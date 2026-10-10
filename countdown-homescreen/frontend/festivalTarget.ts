@@ -49,7 +49,17 @@ export function isScheduledStatus(s: string | null | undefined, statuses?: reado
 }
 
 /** v0.4.1: config overrides (Date_1 fallback, Date_2 first day, Option_List_1 statuses). Missing = code default. */
-export type TargetOptions = {fallbackMs?: number | null; firstDay?: string | null; statuses?: readonly string[]};
+export type TargetOptions = {
+    fallbackMs?: number | null;
+    firstDay?: string | null;
+    statuses?: readonly string[];
+    /** v0.4.9: Festival Days rows (null = table not found → the pre-v0.4.9 Date_2 rule) */
+    days?: readonly FestivalDayInput[] | null;
+    /** v0.4.9: Number_1 / pane — default 0 */
+    targetDay?: number;
+    /** v0.4.9: statuses for the clock target; empty = any status */
+    clockStatuses?: readonly string[];
+};
 
 export const CANCELLED_STATUSES = ['בוטל', 'בוטלה'];
 
@@ -131,7 +141,65 @@ export function formatSlotWhen(ms: number): string {
     return `${Number(p.d)}.${p.m} · ${p.hh}:${p.mm}`;
 }
 
-export type SlotInput = {name: string; startMs: number | null; endMs: number | null; status: string | null};
+export type SlotInput = {
+    name: string;
+    startMs: number | null;
+    endMs: number | null;
+    status: string | null;
+    /** v0.4.9: linked Festival Days record ids (Slots_Events → Festival Days), when the link field exists */
+    dayIds?: readonly string[];
+};
+
+// ---------------------------------------------------------------------------
+// v0.4.9 (the owner 13:59): the clock counts down to the start of the FIRST slot on festival Day N (default 0).
+// Day N = the Festival Days record whose day number (or name: «Day 0», «יום 0», «0») is N; none → the earliest day.
+// First slot = earliest Slots_Events.Start on that day (by the Festival Days link, else by the Israel date).
+// Status filter for the clock: any status unless a pane / Extension_Config status list is set.
+// ---------------------------------------------------------------------------
+export type FestivalDayInput = {id: string; name: string; dayNum: number | null; dateIso: string | null};
+export const DAY_TABLE_ALIASES = ['Festival Days', 'Festival_Days', 'FestivalDays', 'Festival Day', 'ימי פסטיבל', 'ימי הפסטיבל', 'ימים'];
+export const DAY_NUM_ALIASES = ['Day Number', 'Day_Number', 'Day Num', 'Day No', 'Day #', 'Day', 'Number', 'No', 'מספר יום', 'יום', 'מס׳ יום'];
+export const DAY_DATE_ALIASES = ['Date', 'Day Date', 'תאריך'];
+export const SLOT_DAY_LINK_ALIASES = ['Festival Days', 'Festival Day', 'Festival_Days', 'Festival_Day', 'Day', 'Days', 'יום', 'ימי פסטיבל'];
+export const DEFAULT_TARGET_DAY = 0;
+
+/** Number in a day name: «Day 0», «day-3», «יום 0», «יום #2», or a bare «0». Dates («יום 01.11») are not day numbers. */
+export function dayNumberInName(name: string): number | null {
+    const s = String(name ?? '').normalize('NFKC').replace(/\p{Cf}/gu, '').trim();
+    if (/^\d{1,3}$/.test(s)) return Number(s);
+    const m = /(?:^|[^\p{L}\d])(?:day|יום)\s*[-#:№]?\s*(\d{1,3})(?![\d./\-:])/iu.exec(s);
+    return m ? Number(m[1]) : null;
+}
+/** Parse the configured day number («0», « 2 », 0). Bad / empty → default 0. */
+export function parseDayNumber(v: unknown, d = DEFAULT_TARGET_DAY): number {
+    if (typeof v === 'number' && Number.isFinite(v)) return Math.trunc(v);
+    const s = String(v ?? '').replace(/\p{Cf}/gu, '').trim();
+    return /^-?\d+$/.test(s) ? Number(s) : d;
+}
+export type DayPick = {day: FestivalDayInput; via: 'number' | 'name' | 'earliest'; wanted: number};
+export function pickTargetDay(days: readonly FestivalDayInput[], wanted: number): DayPick | null {
+    const byNum = days.find(d => d.dayNum !== null && d.dayNum === wanted);
+    if (byNum) return {day: byNum, via: 'number', wanted};
+    const byName = days.find(d => d.dayNum === null && dayNumberInName(d.name) === wanted) ?? days.find(d => dayNumberInName(d.name) === wanted);
+    if (byName) return {day: byName, via: 'name', wanted};
+    const dated = days.filter(d => d.dateIso).sort((a, b) => (a.dateIso! < b.dateIso! ? -1 : a.dateIso! > b.dateIso! ? 1 : 0));
+    return dated.length ? {day: dated[0], via: 'earliest', wanted} : null;
+}
+/** Slot belongs to the day: by the Festival Days link when the slot has one, else by its Israel start date. */
+export function slotOnDay(s: SlotInput, day: FestivalDayInput): boolean {
+    if (s.dayIds && s.dayIds.length) return s.dayIds.includes(day.id);
+    return !!day.dateIso && s.startMs !== null && israelDate(s.startMs) === day.dateIso;
+}
+/** What the status panel shows about the clock target. */
+export type TargetInfo = {
+    dayLabel: string | null;
+    dayVia: DayPick['via'] | null;
+    wanted: number;
+    slotName: string | null;
+    slotStartMs: number | null;
+    statusFilter: string;
+    onDay: number;
+};
 
 export type SlotsSource =
     | {kind: 'ok'; slots: readonly SlotInput[]}
@@ -143,6 +211,8 @@ export type Phase = 'before' | 'live' | 'ended' | 'fallback';
 
 export type TargetResult = {
     phase: Phase;
+    /** v0.4.9: matched day + slot (status panel) */
+    info?: TargetInfo;
     /** Time the dials count to (ended: last end; dials show zeros). */
     targetMs: number;
     /** Big label under the title, null in fallback (same as v0.1.0). */
@@ -170,6 +240,7 @@ export function computeTarget(source: SlotsSource, nowMs: number, opts: TargetOp
     if (source.kind === 'noTable') return fb('לא נמצאה הטבלה Slots_Events (או שלא הופעלה בחלונית הימנית)');
     if (source.kind === 'noFields') return fb(`חסרים שדות ב־Slots_Events: ${source.missing.join(', ')}`);
 
+    if (opts.days) return dayTarget(source.slots, nowMs, opts, fb);
     const scheduled = source.slots.filter(s => isScheduledStatus(s.status, opts.statuses) && s.startMs !== null);
     if (!scheduled.length) return fb('לא נמצאו משבצות בסטטוס משובץ');
 
@@ -212,6 +283,35 @@ export function computeTarget(source: SlotsSource, nowMs: number, opts: TargetOp
         };
     }
     return {phase: 'ended', targetMs: lastEnd, label: 'הפסטיבל הסתיים', slotLine: null, hint: null, live: false, zero: true};
+}
+
+/** v0.4.9 path: Day N's first slot (any status unless clockStatuses). Same before / live / ended phases. */
+function dayTarget(slots: readonly SlotInput[], nowMs: number, opts: TargetOptions, fb: (hint: string | null) => TargetResult): TargetResult {
+    const wanted = typeof opts.targetDay === 'number' ? opts.targetDay : DEFAULT_TARGET_DAY;
+    const st = (opts.clockStatuses ?? []).filter(x => x.trim());
+    const statusFilter = st.length ? st.join(' | ') : 'כל סטטוס';
+    const pick = pickTargetDay(opts.days ?? [], wanted);
+    const info: TargetInfo = {dayLabel: pick ? pick.day.name || pick.day.dateIso : null, dayVia: pick?.via ?? null, wanted, slotName: null, slotStartMs: null, statusFilter, onDay: 0};
+    const withInfo = (r: TargetResult): TargetResult => ({...r, info});
+    if (!pick) return withInfo(fb(`לא נמצא יום ${wanted} בטבלת Festival Days (וגם אין ימים עם תאריך)`));
+    const cands = slots.filter(s => s.startMs !== null && (!st.length || isScheduledStatus(s.status, st)));
+    const onDay = cands.filter(s => slotOnDay(s, pick.day));
+    info.onDay = onDay.length;
+    if (!onDay.length) return withInfo(fb(`אין משבצות ב«${info.dayLabel}»${st.length ? ` בסטטוס ${statusFilter}` : ''}`));
+    let first = onDay[0];
+    for (const s of onDay) if ((s.startMs as number) < (first.startMs as number)) first = s;
+    const firstStart = first.startMs as number;
+    info.slotName = first.name || 'משבצת ללא שם';
+    info.slotStartMs = firstStart;
+    const endOf = (s: SlotInput) => (s.endMs !== null && s.endMs >= (s.startMs as number) ? s.endMs : (s.startMs as number));
+    let last = first;
+    for (const s of cands) if ((s.startMs as number) >= firstStart && endOf(s) > endOf(last)) last = s;
+    const lastEnd = Math.max(endOf(last), firstStart);
+    if (nowMs < firstStart)
+        return withInfo({phase: 'before', targetMs: firstStart, label: 'עד תחילת הפסטיבל', slotLine: `${info.slotName} · ${formatSlotWhen(firstStart)}`, hint: null, live: false, zero: false});
+    if (nowMs < lastEnd)
+        return withInfo({phase: 'live', targetMs: lastEnd, label: 'עד סוף הפסטיבל', slotLine: `${last.name || 'משבצת ללא שם'} · ${formatSlotWhen(lastEnd)}`, hint: null, live: true, zero: false});
+    return withInfo({phase: 'ended', targetMs: lastEnd, label: 'הפסטיבל הסתיים', slotLine: null, hint: null, live: false, zero: true});
 }
 
 /** Remaining (or elapsed) time split into dial units. */
