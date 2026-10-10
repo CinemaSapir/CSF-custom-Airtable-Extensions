@@ -50,8 +50,8 @@ assert.deepEqual(E.parseAdvancedJson('{oops').json,null); assert.equal(E.parseAd
 assert.equal(E.parseAdvancedJson('[1]').json,null);
 // @me → person records
 const meF={id:'fldMe'}; const rec=(id,c)=>({id,getCellValue:()=>c});
-const recs=[rec('recA',{id:'usrDEMOuser',email:'d@x.il'}),rec('recB',[{id:'usrOther'}]),rec('recC','D@X.IL'),rec('recD',null)];
-assert.deepEqual(E.meRecordIds(recs,meF,{id:'usrDEMOuser',email:'d@x.il'}),['recA','recC']);
-assert.deepEqual(E.meRecordIds(recs,null,{id:'usrDEMOuser'}),[]);
+const recs=[rec('recA',{id:'usrDemoUser',email:'d@x.il'}),rec('recB',[{id:'usrOther'}]),rec('recC','D@X.IL'),rec('recD',null)];
+assert.deepEqual(E.meRecordIds(recs,meF,{id:'usrDemoUser',email:'d@x.il'}),['recA','recC']);
+assert.deepEqual(E.meRecordIds(recs,null,{id:'usrDemoUser'}),[]);
 assert.equal(E.initialToggle(null,true),true);assert.equal(E.initialToggle(false,true),false);
 console.log('all ok', E.FIELD_ORDER.length);

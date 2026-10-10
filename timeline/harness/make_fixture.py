@@ -50,7 +50,7 @@ for i in D['items']:
     elif t=='Booking Resources':
         rec(t,rid,{'Name':i['name'],'Status':sel(i['status']),'Festival Days':fd(i['date'])})
     elif t=='Tasks':
-        rec(t,rid,{'Name':i['name'],'Status':sel(i['status']),'Start Date':i['date'],'Deadline':i['date_end'],'Owner':({'id':'usrDEMOuser','name':i['people'][0]} if i['people'] else None)})
+        rec(t,rid,{'Name':i['name'],'Status':sel(i['status']),'Start Date':i['date'],'Deadline':i['date_end'],'Owner':({'id':'usrDemoUser','name':i['people'][0]} if i['people'] else None)})
     elif t=='Social Posts': rec(t,rid,{'Post title':i['name'],'Publish at':i['date'],'Status':sel(i['status'])})
     elif t=='Petty Cash': rec(t,rid,{'Name':i['name'],'Request Date':i['date'],'Cash_paid':float(i['sub'].strip('₪').replace(',',''))})
     elif t=='Requests': rec(t,rid,{'Name':i['name'],'Request Date':i['date'],'Amount':float(i['sub'].strip('₪').replace(',',''))})
