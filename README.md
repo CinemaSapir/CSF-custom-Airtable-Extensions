@@ -4,7 +4,7 @@ Source code for the Cinema South Festival (CSF) custom Airtable extensions, one 
 
 | Folder | Extension | Version | What it does |
 |---|---|---|---|
-| `countdown-homescreen/` | Countdown homescreen | v0.4.9 | Home-screen countdown to the start of the first slot on festival Day 0 (configurable day number and status filter) with live record-count pills (per-pill filters + count/sum aggregation), a «מצב חיבור» connection-status panel, a mapping panel and inline config editing. |
+| `countdown-homescreen/` | Countdown homescreen | v0.4.10 | Home-screen countdown to the start of the first משובץ slot on festival Day 0 = 31.10 (found by day number, «יום 0» in the name or notes, or Date_2; configurable day number and status filter; the status panel shows every step) with live record-count pills (per-pill filters + count/sum aggregation), a «מצב חיבור» connection-status panel, a mapping panel and inline config editing. |
 | `timeline-festival-days/` | Timeline («טיימליין ימים») | v0.2.10 | Multi-table festival timeline: columns per table, drag-create / move / resize with undo, cross-section window + band (time snaps to 5 min) (names only, vertical when crowded), identical per-column header controls (⠿ · filter · ⇤ · ⋯ · ✕).. Config row: `Extension = timeline-festival-days`, empty Variant (old keys `timeline` and `program-by-day` + `timeline` still read as fallbacks). |
 | `lists-ui/` | Lists UI («רשימות») | v0.6.4 | Interface extension for working lists: home, list page, compact and dynamic list views, sharing. |
 | `people-roles/` | People & Roles («אנשים ותפקידים») | v0.3.4 | Phone book plus people/role/assignment editing with duplicate-phone warnings and undo. |

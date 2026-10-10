@@ -28,6 +28,7 @@ import {
     type SlotsSource,
     type FestivalDayInput,
     DAY_DATE_ALIASES,
+    DAY_NOTE_ALIASES,
     DAY_NUM_ALIASES,
     DAY_TABLE_ALIASES,
     SLOT_DAY_LINK_ALIASES,
@@ -524,6 +525,7 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
     })();
     const dayNumF = daysT ? findByLooseName(daysT.fields, [fp('Source_Field_10'), ...DAY_NUM_ALIASES]) : null;
     const dayDateF = daysT ? findByLooseName(daysT.fields, DAY_DATE_ALIASES) : null;
+    const dayNoteF = daysT ? findByLooseName(daysT.fields, DAY_NOTE_ALIASES) : null;
     const paneDay = String(P[TARGET_DAY_KEY] ?? '').trim();
     const targetDay = parseDayNumber(paneDay || (() => { try { return cfg.raw('Number_1'); } catch { return ''; } })());
     const targetDayVia = paneDay && /^-?\d+$/.test(paneDay) ? 'חלונית' : cfg.status === 'ok' && cfg.raw('Number_1').trim() && cfg.raw('Number_1').trim() !== String(D.Number_1) ? 'Extension_Config Number_1' : 'ברירת מחדל';
@@ -536,7 +538,7 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
         } catch {
             /* default */
         }
-        return {list: [] as string[], via: 'ברירת מחדל'};
+        return {list: [] as string[], via: 'ברירת מחדל = Option_List_1 (משובץ)'};
     })();
     const filmSlotsF = findLink(filmsT, [fp('Source_Field_6'), ...FILM_SLOT_LINK_ALIASES]);
     const projectSlotsF = findLink(projectsT, PROJECT_SLOT_LINK_ALIASES);
@@ -552,7 +554,7 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
         <AllRecs tables={[...PILLS.map(p => tablesByPill[p.key]), daysT]}>
             {recList => {
                 const dayRecs = recList[PILLS.length];
-                const days = daysT && dayRecs ? readDays(dayRecs, dayNumF, dayDateF) : null;
+                const days = daysT && dayRecs ? readDays(dayRecs, dayNumF, dayDateF, dayNoteF) : null;
                 const recsByPill = {} as Record<PillKey, readonly AtRecord[] | null>;
                 PILLS.forEach((p, i) => (recsByPill[p.key] = recList[i]));
                 const cfgFilters = readConfigFilters(cfg);
@@ -636,6 +638,7 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
                 sources.push({label: 'שעון: Festival Days · טבלה', table: daysT?.name ?? null, via: daysT ? 'Source_Table_7 / לפי שם' : 'לא נמצאה', ok: true, note: daysT ? null : 'בלי הטבלה: היום הראשון = Date_2 (כלל ישן)'});
                 if (daysT) {
                     sources.push({label: 'שעון: מספר יום', table: daysT.name, field: dayNumF?.name ?? fp('Source_Field_10'), via: dayNumF ? 'לפי שם' : 'לא נמצא → לפי השם («Day 0» / «יום 0»)', ok: true, note: null});
+                    sources.push({label: 'שעון: הערות היום («יום 0»)', table: daysT.name, field: dayNoteF?.name ?? 'Notes', via: dayNoteF ? 'לפי שם' : 'לא נמצא', ok: true, note: null});
                     sources.push({label: 'שעון: תאריך היום', table: daysT.name, field: dayDateF?.name ?? 'Date', via: dayDateF ? 'לפי שם' : 'לא נמצא', ok: !!dayDateF || !!f?.days, note: !dayDateF && !f?.days ? 'אין תאריך ואין קישור — אי אפשר לשייך משבצות ליום' : null});
                 }
                 if (aggLines.bad.length)
@@ -823,7 +826,7 @@ function readSource(table: Table | null, f: SlotFields | null, recs: readonly At
 }
 
 /** v0.4.9: Festival Days rows → {id, name, dayNum, dateIso}. Day number: number cell, else «Day N» in the cell text. */
-function readDays(recs: readonly AtRecord[], numF: Field | null, dateF: Field | null): FestivalDayInput[] {
+function readDays(recs: readonly AtRecord[], numF: Field | null, dateF: Field | null, noteF: Field | null = null): FestivalDayInput[] {
     const out: FestivalDayInput[] = [];
     for (const r of recs) {
         try {
@@ -838,7 +841,8 @@ function readDays(recs: readonly AtRecord[], numF: Field | null, dateF: Field | 
                 const sv = typeof v === 'string' ? v : '';
                 dateIso = /^\d{4}-\d{2}-\d{2}$/.test(sv) ? sv : sv ? (Number.isFinite(Date.parse(sv)) ? israelDate(Date.parse(sv)) : null) : null;
             }
-            out.push({id: r.id, name: safeName(r), dayNum, dateIso});
+            const note = noteF ? r.getCellValueAsString(noteF) : '';
+            out.push({id: r.id, name: safeName(r), dayNum, dateIso, note});
         } catch {
             /* skip unreadable row */
         }
@@ -908,12 +912,21 @@ function Screen({
 
     const t = computeTarget(source, now, {...live.targetOpts, days: target.days, targetDay: target.targetDay, clockStatuses: target.clockStatuses});
     const ti = t.info;
-    const targetNote = target.days
+    const viaHe: Record<string, string> = {number: 'לפי שדה מספר יום', name: 'לפי שם היום', note: 'לפי הערות היום', date: 'לפי התאריך (Date_2)', earliest: 'גיבוי: היום המוקדם ביותר'};
+    const brief = (x: {name: string; startMs: number; status: string | null}) => `«${x.name}» ${formatSlotWhen(x.startMs)} · ${x.status || 'ללא סטטוס'}`;
+    // v0.4.10: every step of the clock target, one line each (the owner 14:45)
+    const targetNotes: string[] = target.days
         ? ti
-            ? `שעון → יום ${ti.wanted} (${target.targetDayVia}): ${ti.dayLabel ? `«${ti.dayLabel}» (${ti.dayVia === 'number' ? 'לפי מספר יום' : ti.dayVia === 'name' ? 'לפי שם היום' : 'אין יום כזה → היום המוקדם ביותר'})` : 'לא נמצא'} · משבצת ראשונה: ${ti.slotName ? `«${ti.slotName}» ${ti.slotStartMs !== null ? formatSlotWhen(ti.slotStartMs) : ''}` : '—'} · ${ti.onDay} משבצות ביום · סטטוס: ${ti.statusFilter} (${target.clockStatusesVia})`
-            : `שעון: ${t.hint ?? t.label ?? ''}`
-        : 'שעון: אין טבלת Festival Days → כלל ישן (Date_2 + Option_List_1)';
-    const statusWithTarget = {...status, notes: [...(status.notes ?? []), targetNote]};
+            ? [
+                  `שעון 1 · יום ${ti.wanted} (${target.targetDayVia}) → ${ti.dayLabel ? `«${ti.dayLabel}»${ti.dayDate ? ` (${ti.dayDate.slice(8, 10)}.${ti.dayDate.slice(5, 7)})` : ''} — ${viaHe[ti.dayVia ?? ''] ?? ''}` : 'לא נמצא'}`,
+                  `שעון 2 · ניסיונות: ${ti.dayTried.join(' → ')}`,
+                  `שעון 3 · סטטוס: ${ti.statusFilter} (${target.clockStatusesVia}) · ${ti.onDay} משבצות מתאימות ביום · דולגו: ${ti.skipped.status} סטטוס אחר, ${ti.skipped.cancelled} בוטל, ${ti.skipped.allDay} כל-היום, ${ti.skipped.noStart} מקושרות בלי Start${ti.skipped.linkMismatch ? ` · ⚠ ${ti.skipped.linkMismatch} משבצות שהקישור ליום לא תואם לתאריך ה-Start (נקבע לפי Start)` : ''}`,
+                  `שעון 4 · משבצת נבחרת: ${ti.slotName && ti.slotStartMs !== null ? brief({name: ti.slotName, startMs: ti.slotStartMs, status: ti.slotStatus}) : `— (${t.hint ?? ''})`}`,
+                  `שעון 5 · הבאות בתור: ${ti.runnersUp.length ? ti.runnersUp.map(brief).join(' ; ') : '—'}`,
+              ]
+            : [`שעון: ${t.hint ?? t.label ?? ''}`]
+        : ['שעון: אין טבלת Festival Days → כלל ישן (Date_2 + Option_List_1)'];
+    const statusWithTarget = {...status, notes: [...(status.notes ?? []), ...targetNotes]};
     const clock = t.zero ? {days: 0, hours: 0, minutes: 0} : splitDuration(t.targetMs - now);
     // 'remaining' mode only (opt-in): v0.4.4 phase logic over the filtered sets
     const c = computeCounts(input, t.phase, now);

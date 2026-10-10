@@ -1,0 +1,577 @@
+{
+"source": "DEMO base, read 2026-10-10 14:50 (UTC+3) via the Airtable connector; Festival Days has Name / Notes / Date (no day-number field), Slots_Events.Start is dateTime timeZone=client",
+"days": [
+{
+"id": "rec1qElrxu2i9VBdV",
+"name": "יום ו׳ 16.10.26",
+"note": "DEMO · הכנות · יום -15",
+"date": "2026-10-16"
+},
+{
+"id": "recvQv8jsCqDkjHXk",
+"name": "שבת 17.10.26",
+"note": "DEMO · הכנות · יום -14",
+"date": "2026-10-17"
+},
+{
+"id": "recSMuDun6fftp1uY",
+"name": "יום א׳ 18.10.26",
+"note": "DEMO · הכנות · יום -13",
+"date": "2026-10-18"
+},
+{
+"id": "recBM6ZgYJ42e0VGB",
+"name": "יום ב׳ 19.10.26",
+"note": "DEMO · הכנות · יום -12",
+"date": "2026-10-19"
+},
+{
+"id": "recLFkJ1PLGcynjHA",
+"name": "יום ג׳ 20.10.26",
+"note": "DEMO · הכנות · יום -11",
+"date": "2026-10-20"
+},
+{
+"id": "recCrtxHujSnd7O9y",
+"name": "יום ד׳ 21.10.26",
+"note": "DEMO · הכנות · יום -10",
+"date": "2026-10-21"
+},
+{
+"id": "rec1pqhT8tallWUek",
+"name": "יום ה׳ 22.10.26",
+"note": "DEMO · הכנות · יום -9",
+"date": "2026-10-22"
+},
+{
+"id": "recoIRtFvg3kyB68P",
+"name": "יום ו׳ 23.10.26",
+"note": "DEMO · הכנות · יום -8",
+"date": "2026-10-23"
+},
+{
+"id": "recaA3WzOJrmXRfY8",
+"name": "שבת 24.10.26",
+"note": "DEMO · הכנות · יום -7",
+"date": "2026-10-24"
+},
+{
+"id": "rec6bV3ElU3nHFt46",
+"name": "יום א׳ 25.10.26",
+"note": "DEMO · הכנות · יום -6",
+"date": "2026-10-25"
+},
+{
+"id": "recBJHg1iEjXOmZ2s",
+"name": "יום ב׳ 26.10.26",
+"note": "DEMO · הכנות · יום -5",
+"date": "2026-10-26"
+},
+{
+"id": "recmh9T361hgfHtFq",
+"name": "יום ג׳ 27.10.26",
+"note": "DEMO · הכנות · יום -4",
+"date": "2026-10-27"
+},
+{
+"id": "recmXuQDHRhOpXGUl",
+"name": "יום ד׳ 28.10.26",
+"note": "DEMO · הכנות · יום -3",
+"date": "2026-10-28"
+},
+{
+"id": "recbsWpYdwi9Dah08",
+"name": "יום ה׳ 29.10.26",
+"note": "DEMO · הכנות · יום -2",
+"date": "2026-10-29"
+},
+{
+"id": "recLy8GPj7DUlQdOd",
+"name": "יום ו׳ 30.10.26",
+"note": "DEMO · הכנות · יום -1",
+"date": "2026-10-30"
+},
+{
+"id": "recXttfIWvlLEzODr",
+"name": "שבת 31.10.26 · ערב הפסטיבל",
+"note": "DEMO · הכנות · יום 0, ערב הפסטיבל",
+"date": "2026-10-31"
+},
+{
+"id": "recFSyKAmTymZgjmW",
+"name": "יום א׳ 1.11.26 · פתיחה",
+"note": "DEMO · ערב פתיחה, שלוש הקרנות ראשונות",
+"date": "2026-11-01"
+},
+{
+"id": "recpXCstp7UUh04MB",
+"name": "יום ב׳ 2.11.26",
+"note": "DEMO · יום תחרות א׳",
+"date": "2026-11-02"
+},
+{
+"id": "rec5J1DIkeeGES015",
+"name": "יום ג׳ 3.11.26",
+"note": "DEMO · יום הקרנות מרכזי",
+"date": "2026-11-03"
+},
+{
+"id": "rechhAV0YEle1Shpj",
+"name": "יום ד׳ 4.11.26",
+"note": "DEMO · סדנאות ומפגשי יוצרים",
+"date": "2026-11-04"
+},
+{
+"id": "rec9ZfyQvbLCzydmV",
+"name": "יום ה׳ 5.11.26",
+"note": "DEMO · יום תחרות ב׳",
+"date": "2026-11-05"
+},
+{
+"id": "recbm7JTp0v19g1rG",
+"name": "יום ו׳ 6.11.26",
+"note": "DEMO · הקרנות בוקר בלבד",
+"date": "2026-11-06"
+},
+{
+"id": "recplulSGnwMGIjJc",
+"name": "מוצ״ש 7.11.26 · נעילה",
+"note": "DEMO · טקס נעילה והכרזת זוכים",
+"date": "2026-11-07"
+},
+{
+"id": "recNSSJSpY1gCiNFn",
+"name": "יום א׳ 8.11.26",
+"note": "DEMO · פירוק וסיכום · יום +8",
+"date": "2026-11-08"
+},
+{
+"id": "rec582THONPMihZn1",
+"name": "יום ב׳ 9.11.26",
+"note": "DEMO · פירוק וסיכום · יום +9",
+"date": "2026-11-09"
+},
+{
+"id": "recJn1fbs358Gm0X6",
+"name": "יום ג׳ 10.11.26",
+"note": "DEMO · פירוק וסיכום · יום +10",
+"date": "2026-11-10"
+}
+],
+"slots": [
+{
+"name": "DEMO Slot 08",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": [
+"recplulSGnwMGIjJc"
+]
+},
+{
+"name": "DEMO Slot 11",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": []
+},
+{
+"name": "DEMO Slot 10",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": []
+},
+{
+"name": "DEMO Slot 09",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": []
+},
+{
+"name": "DEMO Slot 07",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": []
+},
+{
+"name": "DEMO Slot 12",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": []
+},
+{
+"name": "DEMO Slot 07",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": [
+"recbm7JTp0v19g1rG"
+]
+},
+{
+"name": "DEMO Slot 10",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": []
+},
+{
+"name": "DEMO Slot 12",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": []
+},
+{
+"name": "DEMO Slot 08",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": []
+},
+{
+"name": "DEMO Slot 04",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": [
+"rechhAV0YEle1Shpj"
+]
+},
+{
+"name": "DEMO Slot 06",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": [
+"rec9ZfyQvbLCzydmV"
+]
+},
+{
+"name": "DEMO Slot 11",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": []
+},
+{
+"name": "DEMO Slot 05",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": [
+"rec9ZfyQvbLCzydmV"
+]
+},
+{
+"name": "DEMO Slot 03",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": [
+"rechhAV0YEle1Shpj"
+]
+},
+{
+"name": "DEMO Slot 01",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": [
+"recpXCstp7UUh04MB"
+]
+},
+{
+"name": "DEMO Slot 09",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": [
+"recplulSGnwMGIjJc"
+]
+},
+{
+"name": "DEMO Slot 02",
+"start": null,
+"end": null,
+"status": "מתוכנן",
+"days": [
+"recpXCstp7UUh04MB"
+]
+},
+{
+"name": "מסיבת עיתונאים: השקת התוכניה",
+"start": "2026-10-21T08:00:00.000Z",
+"end": "2026-10-21T09:30:00.000Z",
+"status": "משובץ",
+"days": [
+"recCrtxHujSnd7O9y"
+]
+},
+{
+"name": "בדיקת DCP והגברה – אולם ספיר א׳",
+"start": "2026-10-29T08:00:00.000Z",
+"end": "2026-10-29T12:00:00.000Z",
+"status": "משובץ",
+"days": [
+"recbsWpYdwi9Dah08"
+]
+},
+{
+"name": "חזרה גנרלית לטקס הפתיחה",
+"start": "2026-10-31T14:00:00.000Z",
+"end": "2026-10-31T17:00:00.000Z",
+"status": "משובץ",
+"days": [
+"recXttfIWvlLEzODr"
+]
+},
+{
+"name": "סדנת תסריט לנוער",
+"start": "2026-11-01T08:00:00.000Z",
+"end": "2026-11-01T10:30:00.000Z",
+"status": "משובץ",
+"days": [
+"recFSyKAmTymZgjmW"
+]
+},
+{
+"name": "הקרנה: בין הקווים",
+"start": "2026-11-01T14:30:00.000Z",
+"end": "2026-11-01T16:00:00.000Z",
+"status": "משובץ",
+"days": [
+"recFSyKAmTymZgjmW"
+]
+},
+{
+"name": "קבלת פנים לאורחי הפתיחה",
+"start": "2026-11-01T16:00:00.000Z",
+"end": "2026-11-01T17:00:00.000Z",
+"status": "משובץ",
+"days": [
+"recFSyKAmTymZgjmW"
+]
+},
+{
+"name": "טקס פתיחה",
+"start": "2026-11-01T17:00:00.000Z",
+"end": "2026-11-01T17:55:00.000Z",
+"status": "משובץ",
+"days": [
+"recFSyKAmTymZgjmW"
+]
+},
+{
+"name": "הקרנה: צללים בדרום",
+"start": "2026-11-01T18:00:00.000Z",
+"end": "2026-11-01T19:30:00.000Z",
+"status": "מתוכנן",
+"days": [
+"recFSyKAmTymZgjmW"
+]
+},
+{
+"name": "הקרנה: אור בעמק",
+"start": "2026-11-01T20:00:00.000Z",
+"end": "2026-11-01T21:30:00.000Z",
+"status": "מתוכנן",
+"days": [
+"recFSyKAmTymZgjmW"
+]
+},
+{
+"name": "הקרנה: רסיסים",
+"start": "2026-11-01T21:30:00.000Z",
+"end": "2026-11-01T23:00:00.000Z",
+"status": "מתוכנן",
+"days": [
+"recFSyKAmTymZgjmW"
+]
+},
+{
+"name": "כיתת אמן: צילום בתנאי מדבר",
+"start": "2026-11-02T09:00:00.000Z",
+"end": "2026-11-02T10:30:00.000Z",
+"status": "משובץ",
+"days": [
+"recpXCstp7UUh04MB"
+]
+},
+{
+"name": "הקרנה: גבול פתוח",
+"start": "2026-11-02T12:00:00.000Z",
+"end": "2026-11-02T13:30:00.000Z",
+"status": "משובץ",
+"days": [
+"recpXCstp7UUh04MB"
+]
+},
+{
+"name": "הקרנה: הבית שעל הגבעה",
+"start": "2026-11-02T12:30:00.000Z",
+"end": "2026-11-02T14:00:00.000Z",
+"status": "משובץ",
+"days": [
+"recpXCstp7UUh04MB"
+]
+},
+{
+"name": "פאנל: קולנוע בפריפריה",
+"start": "2026-11-02T14:00:00.000Z",
+"end": "2026-11-02T15:15:00.000Z",
+"status": "מתוכנן",
+"days": [
+"recpXCstp7UUh04MB"
+]
+},
+{
+"name": "הקרנה: מים שקטים",
+"start": "2026-11-02T18:00:00.000Z",
+"end": "2026-11-02T19:40:00.000Z",
+"status": "משובץ",
+"days": [
+"recpXCstp7UUh04MB"
+]
+},
+{
+"name": "פיצ׳ינג: פרויקטים בפיתוח",
+"start": "2026-11-03T08:00:00.000Z",
+"end": "2026-11-03T11:00:00.000Z",
+"status": "משובץ",
+"days": [
+"rec5J1DIkeeGES015"
+]
+},
+{
+"name": "חממה: מפגש מנטורים",
+"start": "2026-11-03T10:00:00.000Z",
+"end": "2026-11-03T12:00:00.000Z",
+"status": "מתוכנן",
+"days": [
+"rec5J1DIkeeGES015"
+]
+},
+{
+"name": "הקרנה: חלון פתוח",
+"start": "2026-11-03T17:30:00.000Z",
+"end": "2026-11-03T19:00:00.000Z",
+"status": "מתוכנן",
+"days": [
+"rec5J1DIkeeGES015"
+]
+},
+{
+"name": "הקרנה: דרך האבק",
+"start": "2026-11-03T19:30:00.000Z",
+"end": "2026-11-03T21:00:00.000Z",
+"status": "מתוכנן",
+"days": [
+"rec5J1DIkeeGES015"
+]
+},
+{
+"name": "הקרנה: משמרת לילה",
+"start": "2026-11-03T21:15:00.000Z",
+"end": "2026-11-03T22:45:00.000Z",
+"status": "מתוכנן",
+"days": [
+"rec5J1DIkeeGES015"
+]
+},
+{
+"name": "הקרנה: ילדי הרוח",
+"start": "2026-11-04T15:00:00.000Z",
+"end": "2026-11-04T16:30:00.000Z",
+"status": "משובץ",
+"days": [
+"rechhAV0YEle1Shpj"
+]
+},
+{
+"name": "הקרנה: עיר הנמל",
+"start": "2026-11-04T16:00:00.000Z",
+"end": "2026-11-04T17:40:00.000Z",
+"status": "משובץ",
+"days": [
+"rechhAV0YEle1Shpj"
+]
+},
+{
+"name": "שיחה עם הבמאית אחרי ההקרנה",
+"start": "2026-11-04T16:30:00.000Z",
+"end": "2026-11-04T17:15:00.000Z",
+"status": "מתוכנן",
+"days": [
+"rechhAV0YEle1Shpj"
+]
+},
+{
+"name": "הופעה: להקת הדרום",
+"start": "2026-11-04T19:00:00.000Z",
+"end": "2026-11-04T20:30:00.000Z",
+"status": "בבדיקה",
+"days": [
+"rechhAV0YEle1Shpj"
+]
+},
+{
+"name": "שיפוט: ישיבת חבר השופטים",
+"start": "2026-11-05T08:00:00.000Z",
+"end": "2026-11-05T11:00:00.000Z",
+"status": "משובץ",
+"days": [
+"rec9ZfyQvbLCzydmV"
+]
+},
+{
+"name": "הקרנה: חוזרים הביתה",
+"start": "2026-11-05T14:00:00.000Z",
+"end": "2026-11-05T15:30:00.000Z",
+"status": "משובץ",
+"days": [
+"rec9ZfyQvbLCzydmV"
+]
+},
+{
+"name": "הקרנה: אבק כוכבים",
+"start": "2026-11-05T14:15:00.000Z",
+"end": "2026-11-05T15:45:00.000Z",
+"status": "משובץ",
+"days": [
+"rec9ZfyQvbLCzydmV"
+]
+},
+{
+"name": "טקס נעילה והכרזת זוכים",
+"start": "2026-11-07T17:30:00.000Z",
+"end": "2026-11-07T19:00:00.000Z",
+"status": "משובץ",
+"days": [
+"recplulSGnwMGIjJc"
+]
+},
+{
+"name": "מסיבת נעילה",
+"start": "2026-11-07T19:30:00.000Z",
+"end": "2026-11-07T22:30:00.000Z",
+"status": "מתוכנן",
+"days": [
+"recplulSGnwMGIjJc"
+]
+},
+{
+"name": "הקרנה חוזרת לבתי ספר: הסרט הזוכה",
+"start": "2026-11-08T08:00:00.000Z",
+"end": "2026-11-08T09:30:00.000Z",
+"status": "מתוכנן",
+"days": [
+"recNSSJSpY1gCiNFn"
+]
+}
+]
+}

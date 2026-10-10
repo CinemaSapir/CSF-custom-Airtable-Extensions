@@ -26,7 +26,7 @@ test('pickTargetDay: by number, then by name, else earliest day', () => {
     assert.deepEqual([T.pickTargetDay(named, 7)!.day.id, T.pickTargetDay(named, 7)!.via], ['b', 'earliest']);
     assert.equal(T.pickTargetDay([], 0), null);
 });
-test('clock target = earliest Start on Day 0, ANY status by default (Israel date, DST-aware)', () => {
+test('clock target = earliest Start on Day 0 (v0.4.10: «*» = any status but cancelled; default = Option_List_1)', () => {
     const src = {kind: 'ok' as const, slots: [
         slot('late on day 0', '2026-10-31T18:00:00+02:00'),
         slot('first on day 0', '2026-10-31T10:30:00+02:00', 'טיוטה'),
@@ -34,15 +34,15 @@ test('clock target = earliest Start on Day 0, ANY status by default (Israel date
         slot('just before midnight 30.10 IL', '2026-10-30T23:30:00+02:00'),
         slot('day 1', '2026-11-01T08:00:00+02:00', 'משובץ'),
     ]};
-    const t = T.computeTarget(src, NOW, {days: DAYS, targetDay: 0});
+    const t = T.computeTarget(src, NOW, {days: DAYS, targetDay: 0, clockStatuses: ['*']});
     assert.equal(t.phase, 'before');
     assert.equal(t.targetMs, ms('2026-10-31T10:30:00+02:00'));
     assert.equal(t.info!.slotName, 'first on day 0');
     assert.equal(t.info!.dayLabel, 'פתיחה');
-    assert.equal(t.info!.statusFilter, 'כל סטטוס');
+    assert.equal(t.info!.statusFilter, 'כל סטטוס (חוץ מבוטל)');
     assert.equal(t.info!.onDay, 2);
 });
-test('status filter configurable; Day N configurable; link beats date', () => {
+test('status filter configurable; Day N configurable; v0.4.10: Israel Start date beats the link', () => {
     const src = {kind: 'ok' as const, slots: [
         slot('draft', '2026-10-31T09:00:00+02:00', 'טיוטה'),
         slot('sched', '2026-10-31T11:00:00+02:00', 'משובץ'),
@@ -50,8 +50,10 @@ test('status filter configurable; Day N configurable; link beats date', () => {
         slot('day 1 first', '2026-11-01T08:00:00+02:00'),
     ]};
     assert.equal(T.computeTarget(src, NOW, {days: DAYS, targetDay: 0, clockStatuses: ['משובץ']}).info!.slotName, 'sched');
-    assert.equal(T.computeTarget(src, NOW, {days: DAYS, targetDay: 0}).info!.slotName, 'draft');
-    assert.equal(T.computeTarget(src, NOW, {days: DAYS, targetDay: 1}).info!.slotName, 'linked to day 1 but dated 31.10');
+    assert.equal(T.computeTarget(src, NOW, {days: DAYS, targetDay: 0}).info!.slotName, 'sched'); // v0.4.10 default = משובץ
+    assert.equal(T.computeTarget(src, NOW, {days: DAYS, targetDay: 0, clockStatuses: ['*']}).info!.slotName, 'linked to day 1 but dated 31.10');
+    assert.equal(T.computeTarget(src, NOW, {days: DAYS, targetDay: 1, clockStatuses: ['*']}).info!.slotName, 'day 1 first');
+    assert.equal(T.computeTarget(src, NOW, {days: DAYS, targetDay: 1, clockStatuses: ['*']}).info!.skipped.linkMismatch, 1);
     const none = T.computeTarget(src, NOW, {days: DAYS, targetDay: 0, clockStatuses: ['בוטל']});
     assert.equal(none.phase, 'fallback');
     assert.match(none.hint!, /אין משבצות ב«פתיחה»/);
@@ -68,8 +70,8 @@ test('index: pane + Extension_Config wiring and the status-panel line', () => {
     assert.match(src, /key: CLOCK_STATUS_KEY/);
     assert.match(src, /cfg\.raw\('Number_1'\)/);
     assert.match(src, /cfg\.options\('Option_List_4'\)/);
-    assert.match(src, /שעון → יום \$\{ti\.wanted\}/);
-    assert.match(src, /readDays\(dayRecs, dayNumF, dayDateF\)/);
+    assert.match(src, /שעון 1 · יום \$\{ti\.wanted\}/);
+    assert.match(src, /readDays\(dayRecs, dayNumF, dayDateF, dayNoteF\)/);
     const cfg = readFileSync(new URL('../frontend/config.ts', import.meta.url), 'utf8');
     assert.match(cfg, /Number_1: 0,/);
     assert.match(cfg, /Option_List_4: '',/);
