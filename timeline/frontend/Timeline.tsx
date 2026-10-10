@@ -14,6 +14,8 @@ import {
     assignLanes,
     bandSlice,
     lensPlan,
+    bandLabel,
+    keptCompress,
     colWidths,
     normalizeWidths,
     resizeWidth,
@@ -107,7 +109,7 @@ export type TimelineProps = {
     dayIdByDate?: {[date: string]: string};
 };
 
-type Persist = {res?: number; collapse?: boolean; compress?: boolean; xs?: boolean; shown?: string[]; closed?: string[]; order?: string[]; widths?: {[t: string]: number}; /** v0.2.4: tables switched off in the cross-section */ wOff?: string[]; /** v0.2.4: per-table values picked for the cross-section */ wPick?: {[t: string]: string[]}; /** v0.2.5: per-column filters (user choice; absent table = right-pane default) */ colF?: ColFilters};
+type Persist = {res?: number; collapse?: boolean; compress?: boolean; xs?: boolean; shown?: string[]; closed?: string[]; order?: string[]; widths?: {[t: string]: number}; /** v0.2.4: tables switched off in the cross-section */ wOff?: string[]; /** v0.2.4: per-table values picked for the cross-section */ wPick?: {[t: string]: string[]}; /** v0.2.5: per-column filters (user choice; absent table = right-pane default) */ colF?: ColFilters; /** v0.2.6: the user toggled «כווץ שעות ריקות» themselves */ compressUser?: boolean; /** v0.2.6: tables hidden from the window */ wHide?: string[]};
 const LS = 'csf.timeline.v1.';
 function loadPersist(key: string): Persist {
     try {
@@ -140,13 +142,34 @@ export function Timeline(p: TimelineProps) {
 
     const [res, setRes] = useState(() => (p.res.steps.some(s => s.min === saved.res) ? (saved.res as number) : p.res.def));
     const [collapseC, setCollapseC] = useState(() => (typeof saved.collapse === 'boolean' ? saved.collapse : p.toggles.collapse.def));
-    const [compressT, setCompressT] = useState(() => (typeof saved.compress === 'boolean' ? saved.compress : p.toggles.compress.def));
+    // v0.2.6: compress defaults ON. Before v0.2.6 the value was saved even when never touched, so an old saved `false` is not a
+    // choice; only a saved `true`, or any value the user set since v0.2.6 (compressUser), is kept.
+    const [compressT, setCompressT] = useState(() => keptCompress(saved, p.toggles.compress.def));
+    const [compressUser, setCompressUser] = useState(() => saved.compressUser === true);
     const [xs, setXs] = useState(() => (typeof saved.xs === 'boolean' ? saved.xs : p.toggles.xs.def));
     const [shown, setShown] = useState<Set<string>>(() => new Set(saved.shown?.filter(t => allT.includes(t)).length ? saved.shown.filter(t => allT.includes(t)) : allT));
     const [closed, setClosed] = useState<Set<string>>(() => new Set(saved.closed ?? []));
     const [forceOpen, setForceOpen] = useState<Set<string>>(() => new Set());
     const [colW, setColW] = useState<{[t: string]: number}>(() => normalizeWidths(saved.widths, allT));
     const rootRef = useRef<HTMLDivElement>(null);
+    // v0.2.6: band names — the estimate picks orientation + size; this pass measures the real text and shrinks it until it fits
+    // (min 9px); only then the ellipsis (full name on hover). Runs before paint on every render, so nothing flickers.
+    useLayoutEffect(() => {
+        const root = rootRef.current;
+        if (!root) return;
+        for (const n of root.querySelectorAll<HTMLElement>('.ev .lens .bn')) {
+            const lens = n.parentElement as HTMLElement;
+            lens.classList.toggle('clip', n.dataset.clip === '1'); // React may not reset a class it didn't change
+            const over = () => n.scrollHeight > n.clientHeight + 2 || n.scrollWidth > n.clientWidth + 2;
+            let fs = parseFloat(n.style.fontSize) || 14;
+            while (over() && fs > 9) {
+                fs -= 0.5;
+                n.style.fontSize = fs + 'px';
+            }
+            n.dataset.fit = String(fs);
+            if (over()) lens.classList.add('clip');
+        }
+    });
     // v0.2.3: the SDK palette (colorUtils) also on <html>, so :root tokens, html/body and fixed menus resolve the same colours
     const sdkCss = JSON.stringify(sdkVars(p.colorHex ?? (() => null)));
     useLayoutEffect(() => {
@@ -162,6 +185,8 @@ export function Timeline(p: TimelineProps) {
     const [q, setQ] = useState('');
     // v0.2.4: the window follows the timeline; each user can switch tables off for the window only (saved)
     const [wOff, setWOff] = useState<Set<string>>(() => normalizeOff(saved.wOff, allT));
+    // v0.2.6 (the owner 10:42): window pills get ⇤ (shrink to a strip at the far left = wOff) AND ✕ (hide from the window = wHide)
+    const [wHide, setWHide] = useState<Set<string>>(() => normalizeOff(saved.wHide, allT));
     // v0.2.4 (the owner 09:21): the window's own filters ADD to the timeline's (AND); clearing them = exactly the timeline
     const [wPick, setWPick] = useState<{[t: string]: string[]}>(() =>
         Object.fromEntries(Object.entries(saved.wPick && typeof saved.wPick === 'object' ? saved.wPick : {}).filter(([t, v]) => allT.includes(t) && Array.isArray(v) && v.length).map(([t, v]) => [t, (v as unknown[]).filter((x): x is string => typeof x === 'string')])),
@@ -205,8 +230,8 @@ export function Timeline(p: TimelineProps) {
     const userScrolled = useRef(false);
 
     useEffect(() => {
-        savePersist(p.userKey, {res, collapse: collapseC, compress: compressT, xs, shown: [...shown], closed: [...closed], order, widths: colW, wOff: [...wOff], wPick, colF});
-    }, [p.userKey, res, collapseC, compressT, xs, shown, closed, order, colW, wOff, wPick, colF]);
+        savePersist(p.userKey, {res, collapse: collapseC, compress: compressT, xs, shown: [...shown], closed: [...closed], order, widths: colW, wOff: [...wOff], wHide: [...wHide], wPick, colF, compressUser});
+    }, [p.userKey, res, collapseC, compressT, compressUser, xs, shown, closed, order, colW, wOff, wHide, wPick, colF]);
 
     // search debounce
     useEffect(() => {
@@ -351,7 +376,9 @@ export function Timeline(p: TimelineProps) {
         for (const s of segs) if (y >= s.y && y < s.y + s.h) return s.t1 > s.t0 ? s.t0 + ((y - s.y) / s.h) * (s.t1 - s.t0) : s.t0;
         return segs.length ? segs[segs.length - 1].t1 : 0;
     };
-    const centreT = segs.length ? mAt(scrollTop + vpH / 2) : curT.current;
+    // v0.2.6: while the scroll position is one we set (עכשיו / קפיצה / layout keep), the centre IS the intended minute —
+    // with «כווץ שעות ריקות» ON a compressed pixel spans many minutes, so reading it back would drift (12:00 → 12:04)
+    const centreT = !segs.length ? curT.current : progY.current !== null && Math.abs(scrollTop - progY.current) < 2 ? curT.current : mAt(scrollTop + vpH / 2);
     const k = Math.max(0, Math.min(p.days.length - 1, Math.floor(centreT / DAY_MIN)));
     const [ba, bb] = segs.length ? band(segs, scrollTop, vpH, p.numbers.bandFrac) : [0, 0];
     const bpx = bandPx(vpH, p.numbers.bandFrac);
@@ -709,6 +736,7 @@ export function Timeline(p: TimelineProps) {
                 h = Math.max(20, y1 - y0 - 1);
             const sl = xs ? bandSlice(y0, h, scrollTop + bpx.top, scrollTop + bpx.top + bpx.height) : null;
             const lp = lensPlan(sl, h);
+            const bl = lp ? bandLabel(i.name, (CW.w[t] ?? 140) / lanes - 6, lp.minH, lanes) : null;
             const m = false;
             const off = stickyOffset(y0, h, scrollTop, 17);
             return (
@@ -730,11 +758,11 @@ export function Timeline(p: TimelineProps) {
                     </small>
                     {canEdit(t, 'resize').ok ? <i className="rz" title="גררו לשינוי משך" /> : null}
                     {lp ? (
-                        <div className={`lens ${lp.head ? 'head' : ''}`} style={{top: lp.top, minHeight: lp.minH, maxHeight: lp.maxH}}>
-                            {lp.head ? <b>{i.name}</b> : null}
-                            <small>
-                                <Rng a={i.s as number} b={i.e as number} />
-                            </small>
+                        // v0.2.6 (the owner 10:36): inside the band ONLY the name, magnified; vertical + smaller when crowded; ellipsis last
+                        <div className={`lens ${lp.head ? 'head' : ''} ${bl?.mode === 'v' ? 'vert' : 'hor'} ${bl?.clip ? 'clip' : ''}`} style={{top: lp.top, height: lp.minH}} title={i.name}>
+                            <b className="bn" data-mode={bl?.mode} data-fs={bl?.fs} data-clip={bl?.clip ? '1' : '0'} style={{fontSize: bl?.fs, WebkitLineClamp: bl?.lines} as CSSProperties}>
+                                {i.name}
+                            </b>
                         </div>
                     ) : null}
                 </div>
@@ -809,18 +837,21 @@ export function Timeline(p: TimelineProps) {
     }
 
     // window (cross-section)
-    const wpass = (i: Item) => winPass(i, passT, shown, wOff) && passPicked(i, wPick);
+    const wShown = new Set([...shown].filter(t => !wHide.has(t)));
+    const wpass = (i: Item) => winPass(i, passT, wShown, wOff) && passPicked(i, wPick);
     const wSrc = filtered;
     const hits = windowHits(wSrc, ba, bb, order, i => wpass(i));
     // the pills list what the window can show: timed items in the slice (all-day chips are not window cards)
-    const pills = winPills(wSrc.filter(i => i.s !== null && overlaps(i, ba, bb) && passT(i) && passPicked(i, wPick)), order, shown, wOff, new Set(Object.keys(wPick).filter(t => wPick[t]?.length)));
-    const wAny = pills.some(x => !x.on) || Object.values(wPick).some(v => v.length);
+    const pills = winPills(wSrc.filter(i => i.s !== null && overlaps(i, ba, bb) && passT(i) && passPicked(i, wPick)), order, wShown, wOff, new Set(Object.keys(wPick).filter(t => wPick[t]?.length)));
+    const wAny = pills.some(x => !x.on) || wHide.size > 0 || Object.values(wPick).some(v => v.length);
     const clearWin = () => {
         setWOff(new Set());
+        setWHide(new Set());
         setWPick({});
     };
     const pickT = openDd?.startsWith('vf:') ? openDd.slice(3) : null;
     const cfT = openDd?.startsWith('cf:') ? openDd.slice(3) : null;
+    const canF = (t: string) => colCount(CF[t]) > 0 || items.some(i => i.table === t && (i.hall.length || i.people.length || i.films.length || i.st || (i.fx && Object.keys(i.fx).length)));
     const cfDims = cfT ? colDims(items.filter(i => i.table === cfT), CF[cfT], p.facetLabels, passQ) : [];
     const cfCur = cfDims.find(d => d.key === (cfT && cfDim[cfT])) ?? cfDims.find(d => CF[cfT ?? '']?.[d.key]?.vals.length) ?? cfDims[0];
     const wRows = winGridRows(p.numbers.maxCards);
@@ -921,6 +952,7 @@ export function Timeline(p: TimelineProps) {
                                 onClick={() => {
                                     curT.current = centreT;
                                     setCompressT(v => !v);
+                                    setCompressUser(true);
                                 }}
                                 data-slot="Toggle_2 · Toggle_Label_2"
                             >
@@ -984,22 +1016,26 @@ export function Timeline(p: TimelineProps) {
                                 <span key={x.t} data-t={x.t} className={`wp1 on ${pk.length ? 'pk' : ''}`} title={`${HE(x.t)} · מוצג בחתך${pk.length ? ' · מסונן: ' + pk.join(', ') : ''}`} style={{['--c' as string]: C(x.t), ['--f' as string]: FILL(x.t)} as CSSProperties}>
                                     {HE(x.t)}
                                     <span className="c num">{x.n}</span>
-                                    {opts.length ? (
-                                        <a
-                                            className="vdd"
-                                            data-cm={'vf:' + x.t}
-                                            title={`סינון לפי ${p.tableFilters?.[x.t]?.field} (בחירה מרובה)`}
-                                            onClick={e => {
-                                                e.stopPropagation();
-                                                const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                                setPickAt({x: r.left, y: r.bottom});
-                                                setOpenDd(o => (o === 'vf:' + x.t ? null : 'vf:' + x.t));
-                                            }}
-                                        >
-                                            {pk.length ? <b className="num">{pk.length}</b> : null}▾
-                                        </a>
-                                    ) : null}
-                                    <a className="x" title={`הסתרת ${HE(x.t)} מהחתך`} onClick={() => setWOff(o => toggleIn(o, x.t))}>
+                                    {/* same order + style as the column headers: filter · shrink · ✕ */}
+                                    <a
+                                        className={`vdd ${opts.length ? '' : 'dis'}`}
+                                        data-cm={'vf:' + x.t}
+                                        aria-disabled={!opts.length}
+                                        title={opts.length ? `סינון לפי ${p.tableFilters?.[x.t]?.field} (בחירה מרובה)` : 'אין שדה סינון בחירה/קישור לטבלה הזו (חלונית ימנית / Filter_N)'}
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                            if (!opts.length) return;
+                                            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                            setPickAt({x: r.left, y: r.bottom});
+                                            setOpenDd(o => (o === 'vf:' + x.t ? null : 'vf:' + x.t));
+                                        }}
+                                    >
+                                        {pk.length ? <b className="num">{pk.length}</b> : null}▾
+                                    </a>
+                                    <a className="sh" title={`כיווץ ${HE(x.t)} לפס בצד שמאל (לחיצה על הפס מחזירה)`} onClick={() => setWOff(o => toggleIn(o, x.t))}>
+                                        ⇤
+                                    </a>
+                                    <a className="x" title={`הסתרת ${HE(x.t)} מהחתך («הכל» מחזיר)`} onClick={() => setWHide(o => toggleIn(o, x.t))}>
                                         ✕
                                     </a>
                                 </span>
@@ -1013,8 +1049,8 @@ export function Timeline(p: TimelineProps) {
                         {/* switched-off tables collapse to the left end, like the side strips; click = back on */}
                         <span className="woff">
                             {pills.filter(x => !x.on).map(x => (
-                                <span key={x.t} data-t={x.t} role="switch" aria-checked={false} className="wp1 off" title={`${HE(x.t)} · מוסתר בחתך · לחצו להחזרה`} style={{['--c' as string]: C(x.t)} as CSSProperties} onClick={() => setWOff(o => toggleIn(o, x.t))}>
-                                    {HE(x.t)}
+                                <span key={x.t} data-t={x.t} role="switch" aria-checked={false} className="wp1 off" title={`${HE(x.t)} · מכווץ בחתך (${x.n}) · לחצו להרחבה`} style={{['--c' as string]: C(x.t)} as CSSProperties} onClick={() => setWOff(o => toggleIn(o, x.t))}>
+                                    <span className="ab">{HE(x.t).slice(0, 2)}</span>
                                     <span className="c num">{x.n}</span>
                                 </span>
                             ))}
@@ -1090,14 +1126,16 @@ export function Timeline(p: TimelineProps) {
                         </span>
                         {!cs[t]?.collapsed ? (
                             <a
-                                className={`cf2 ${colCount(CF[t]) ? 'act' : ''}`}
+                                className={`cf2 ${colCount(CF[t]) ? 'act' : ''} ${canF(t) ? '' : 'dis'}`}
                                 role="button"
                                 aria-label={`סינון ${HE(t)}`}
-                                title={colCount(CF[t]) ? `סינון ${HE(t)} · ${colCount(CF[t])} ערכים פעילים` : `סינון ${HE(t)}`}
+                                aria-disabled={!canF(t)}
+                                title={!canF(t) ? `אין בטבלה ${HE(t)} שדות בחירה/קישור עם ערכים לסינון` : colCount(CF[t]) ? `סינון ${HE(t)} · ${colCount(CF[t])} ערכים פעילים` : `סינון ${HE(t)}`}
                                 data-cm={'cf:' + t}
                                 data-slot={t === tables[0] ? 'Filter_N / חלונית ימנית (ברירת מחדל) · per user' : undefined}
                                 onClick={e => {
                                     e.stopPropagation();
+                                    if (!canF(t)) return;
                                     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                                     setMenuAt({x: r.left, y: r.bottom});
                                     setOpenDd(o => (o === 'cf:' + t ? null : 'cf:' + t));
@@ -1109,19 +1147,6 @@ export function Timeline(p: TimelineProps) {
                                 {colCount(CF[t]) ? <b className="num">{colCount(CF[t])}</b> : null}
                             </a>
                         ) : null}
-                        <a
-                            className="cm2"
-                            title={T.Tab_Label_2}
-                            data-cm={t}
-                            onClick={e => {
-                                e.stopPropagation();
-                                const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                setMenuAt({x: r.left, y: r.bottom});
-                                setOpenDd(o => (o === 'cm:' + t ? null : 'cm:' + t));
-                            }}
-                        >
-                            ⋯
-                        </a>
                         {!cs[t]?.collapsed ? (
                             <span
                                 className={`rsz ${colW[t] !== undefined ? 'set' : ''}`}
@@ -1149,16 +1174,44 @@ export function Timeline(p: TimelineProps) {
                                 }}
                             />
                         ) : null}
-                        <a
-                            className="cx"
-                            title={`סגירת ${HE(t)} (נאסף לפס בצד שמאל)`}
-                            onClick={e => {
-                                e.stopPropagation();
-                                close(t);
-                            }}
-                        >
-                            ✕
-                        </a>
+                        {/* v0.2.6: ⇤ (shrink to strip) · ⋯ menu right next to ✕ (hide) — one control group at the end edge, same on every table */}
+                        <span className="hgrp" data-slot={t === tables[0] ? '⇤ · Tab_Label_2 (⋯) · ✕ (קבוצה אחת)' : undefined}>
+                            <a
+                                className="sh"
+                                title={`כיווץ ${HE(t)} לפס בצד שמאל (לחיצה על הפס פותחת)`}
+                                data-slot={t === tables[0] ? 'Toggle_1 (⇤ כיווץ לפס)' : undefined}
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    close(t);
+                                }}
+                            >
+                                ⇤
+                            </a>
+                            <a
+                                className="cm2"
+                                title={T.Tab_Label_2}
+                                data-cm={t}
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                    setMenuAt({x: r.left, y: r.bottom});
+                                    setOpenDd(o => (o === 'cm:' + t ? null : 'cm:' + t));
+                                }}
+                            >
+                                ⋯
+                            </a>
+                            <a
+                                className={`cx ${tables.length > 1 ? '' : 'dis'}`}
+                                aria-disabled={tables.length <= 1}
+                                title={tables.length > 1 ? `הסתרת ${HE(t)} מהתצוגה (מחזירים מ«תחומים»)` : 'זו העמודה האחרונה המוצגת — אי אפשר להסתיר אותה'}
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    if (tables.length > 1) setShown(s0 => new Set([...s0].filter(x => x !== t)));
+                                }}
+                            >
+                                ✕
+                            </a>
+                        </span>
                     </div>
                 ))}
                 {colDrag && colDrag.lineX !== null ? <div className="dropline2" style={{left: colDrag.lineX}} /> : null}

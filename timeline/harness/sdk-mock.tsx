@@ -92,6 +92,20 @@ function makeTable(t: TableJ) {
     let cache: ReturnType<typeof wrap>[] | null = null;
     return table;
 }
+// v0.2.6: ?crowd=1 adds overlapping Slots_Events around 2.11 13:00–15:30 IL (a crowded band)
+if (QS.has('crowd')) {
+    const t = (fixture as {tables: TableJ[]}).tables.find(x => x.name === 'Slots_Events');
+    const src = t?.records.find(r => String(r.cells.Start ?? '').startsWith('2026-11-02'));
+    if (t && src)
+        [
+            ['פאנל: הקולנוע הישראלי בעידן הסטרימינג', '2026-11-02T10:00:00.000Z', '2026-11-02T12:30:00.000Z'],
+            ['כיתת אמן: תאורה', '2026-11-02T10:15:00.000Z', '2026-11-02T12:00:00.000Z'],
+            ['הקרנה: שבעה ימים בתל אביב', '2026-11-02T10:30:00.000Z', '2026-11-02T12:15:00.000Z'],
+        ].forEach(([n, a, b], k) => {
+            if (t.records.some(r => r.id === 'recCrowd' + k)) return;
+            t.records.push({id: 'recCrowd' + k, cells: {...src.cells, Slot: n, Start: a, End: b}});
+        });
+}
 const tables = (fixture as {tables: TableJ[]}).tables.map(makeTable);
 const base = {id: 'appHarness', name: 'CSF DEMO (harness)', tables, getTableByNameIfExists: (n: string) => tables.find(t => t.name === n) ?? null};
 

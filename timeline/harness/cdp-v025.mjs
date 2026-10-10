@@ -60,6 +60,8 @@ try {
         hallN = m.vals[1][1];
     await tick(hall);
     if (shots) await b.shot(resolve(EV, 'ui-v025-column-filter-menu.png'));
+    await b.mouse('mouseMoved', 640, 760, {button: 'none'}); // off the funnel (hover shade)
+    await sleep(150);
     const f1 = await fun('Slots_Events'),
         v1 = await vc();
     check('active: funnel highlighted (SDK grayDark1) + shows the count', f1.act && f1.n === '1' && f1.bg === 'rgb(68, 68, 68)', f1);
@@ -82,7 +84,7 @@ try {
     const pills = await b.js(`[...document.querySelectorAll('.wpills > .wp1.on')].map(e=>e.dataset.t)`);
     if (pills.length) {
         const vb = await vc();
-        await b.clickSel(`.wpills .wp1[data-t="${pills[0]}"] .x`);
+        await b.clickSel(`.wpills .wp1[data-t="${pills[0]}"] .sh`);
         await sleep(350);
         check('window pill ✕ is additive on top (timeline counts unchanged)', JSON.stringify(await vc()) === JSON.stringify(vb));
         await b.clickSel(`.wpills .woff .wp1[data-t="${pills[0]}"]`);

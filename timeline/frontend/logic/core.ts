@@ -561,7 +561,7 @@ export function normalizeOrder(saved: unknown, all: string[]): string[] {
 // ---------------------------------------------------------------- v0.1.1: column widths (px), shared by header + canvas
 export const COL_MIN = 140; // narrowest timed column
 export const LANE_MIN = 120; // overlapping cards get this much each before they stack
-export const AD_W = 118; // fixed width of a column that only has all-day chips that day
+export const AD_W = 150; // v0.2.6: was 118 — every header now carries the same 5 controls // fixed width of a column that only has all-day chips that day
 export const MAX_LANES_W = 3;
 /**
  * Strips → strip px; all-day-only → AD_W; timed columns share the rest by weight, each at least
@@ -983,4 +983,52 @@ export function toggleColVal(c: ColFilter | undefined, d: string, v: string): Co
     const cur = c?.[d] ?? {op: 'any' as FilterOp, vals: []};
     const vals = cur.vals.includes(v) ? cur.vals.filter(x => x !== v) : [...cur.vals, v];
     return {...(c ?? {}), [d]: {op: cur.op, vals}};
+}
+
+// ===================== v0.2.6: band label (the owner 10:36) =====================
+/** the part of a card inside the cross-section band shows ONLY the name, magnified. Horizontal when it fits (single lane,
+ *  ≤ 2 lines, longest word fits); otherwise vertical (writing-mode) and smaller; ellipsis (full name on hover) only when even
+ *  the smallest vertical size can't hold it. Widths are estimated: Hebrew bold ≈ 0.6em per character. */
+export const BAND_FS = 16.25;
+export const BAND_MIN_FS = 9;
+const CH = 0.6,
+    LH = 1.18;
+export type BandLabel = {mode: 'h' | 'v'; fs: number; lines: number; clip: boolean};
+export function bandLabel(name: string, w: number, h: number, lanes: number, base = BAND_FS, min = BAND_MIN_FS): BandLabel {
+    const n = Math.max(1, name.trim().length);
+    const longest = Math.max(1, ...name.trim().split(/\s+/).map(x => x.length));
+    const iw = Math.max(1, w - 10),
+        ih = Math.max(1, h - 6);
+    const fitH = (fs: number) => {
+        const lines = Math.ceil((n * CH * fs) / iw);
+        return longest * CH * fs <= iw && lines <= 2 && lines * fs * LH <= ih ? lines : 0;
+    };
+    if (lanes <= 1) {
+        const l = fitH(base);
+        if (l) return {mode: 'h', fs: base, lines: l, clip: false};
+    }
+    // vertical: a "line" runs down the slice height; lines stack across the width
+    const fitV = (fs: number) => {
+        const lines = Math.ceil((n * CH * fs) / ih);
+        return longest * CH * fs <= ih && lines * fs * LH <= iw ? lines : 0;
+    };
+    for (let fs = Math.min(base, 14); fs >= min; fs -= 0.5) {
+        const l = fitV(fs);
+        if (l) return {mode: 'v', fs, lines: l, clip: false};
+    }
+    // a short, wide slice: vertical can't hold a word → smaller horizontal lines (as many as the height takes)
+    for (let fs = Math.min(base, 14); fs >= min; fs -= 0.5) {
+        const lines = Math.ceil((n * CH * fs) / iw);
+        if (longest * CH * fs <= iw && lines * fs * LH <= ih) return {mode: 'h', fs, lines, clip: false};
+    }
+    // last resort: whichever orientation holds more characters at the minimum size, clipped with an ellipsis
+    const capV = Math.floor(iw / (min * LH)) * Math.floor(ih / (min * CH));
+    const capH = Math.floor(ih / (min * LH)) * Math.floor(iw / (min * CH));
+    return capV >= capH ? {mode: 'v', fs: min, lines: Math.max(1, Math.floor(iw / (min * LH))), clip: true} : {mode: 'h', fs: min, lines: Math.max(1, Math.floor(ih / (min * LH))), clip: true};
+}
+/** v0.2.6: «כווץ שעות ריקות» default ON; keep a real user choice (old builds saved the default as if chosen) */
+export function keptCompress(saved: {compress?: unknown; compressUser?: unknown}, def: boolean): boolean {
+    if (typeof saved.compress !== 'boolean') return def;
+    if (saved.compressUser === true) return saved.compress;
+    return saved.compress === true ? true : def;
 }

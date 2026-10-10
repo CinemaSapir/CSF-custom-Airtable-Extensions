@@ -81,13 +81,13 @@ try {
     // ---------------- 4. table filter pills
     const tp = await b.js(`(()=>{const tog=document.querySelector('#xsTog').getBoundingClientRect();const lbl=document.querySelector('.wpills .wpl');return {lbl:lbl&&lbl.textContent,pills:[...document.querySelectorAll('.wpills .wp1')].map(e=>({t:e.dataset.t,on:e.classList.contains('on'),r:e.getBoundingClientRect().right,txt:e.textContent})),tog:tog.left,cardT:[...new Set([...document.querySelectorAll('.wg .wc:not(.more) .tg')].map(e=>e.textContent))]}})()`);
     check('4: small label + table pills to the LEFT of the toggle', tp.lbl && tp.pills.length > 0 && tp.pills.every(x => x.r <= tp.tog), tp);
-    const labels = tp.pills.map(x => x.txt.replace(/[✕▾\d]+$/u, ''));
+    const labels = tp.pills.map(x => x.txt.replace(/[✕▾⇤\d]+$/u, ''));
     check('4: the pills are exactly the tables with items in the cross-section', labels.length === tp.cardT.length && tp.cardT.every(t => labels.includes(t)), {labels, cards: tp.cardT});
     const t0 = tp.pills[0].t;
-    await b.clickSel(`.wpills .wp1[data-t="${t0}"] .x`);
+    await b.clickSel(`.wpills .wp1[data-t="${t0}"] .sh`); /* v0.2.6: ⇤ = shrink to the strip (the old ✕); ✕ now hides */
     await sleep(350);
     const afterOff = await b.js(`({pill:document.querySelector('.wpills .wp1[data-t="${t0}"]')?.className,cards:[...document.querySelectorAll('.wg .wc:not(.more) .tg')].map(e=>e.textContent),saved:JSON.parse(localStorage.getItem('csf.timeline.v1.usrHarness')).wOff,all:!!document.querySelector('.wpills .wall')})`);
-    const lab0 = tp.pills[0].txt.replace(/[✕▾\d]+$/u, '');
+    const lab0 = tp.pills[0].txt.replace(/[✕▾⇤\d]+$/u, '');
     check('4: click → that table leaves the cross-section, its pill stays (off) to bring it back', /off/.test(afterOff.pill) && !afterOff.cards.includes(lab0) && afterOff.all, afterOff);
     check('4: the choice is saved per user', JSON.stringify(afterOff.saved) === JSON.stringify([t0]), afterOff.saved);
     const timelineSame = await b.js(`document.querySelectorAll('.canvas .col[data-t="${t0}"] .ev').length`);
@@ -129,7 +129,7 @@ try {
     const base0 = await ids(), tl0 = await tlN();
     const onT = await b.js(`[...document.querySelectorAll('.wpills .wp1.on')].map(e=>e.dataset.t)`);
     const tx = onT.find(t => t !== 'Slots_Events') ?? onT[0];
-    await b.clickSel(`.wpills .wp1[data-t="${tx}"] .x`);
+    await b.clickSel(`.wpills .wp1[data-t="${tx}"] .sh`); /* v0.2.6: ⇤ = shrink to the strip (the old ✕); ✕ now hides */
     await sleep(400);
     const lay = await b.js(`(()=>{const off=document.querySelector('.wpills .woff .wp1[data-t="${tx}"]');const ons=[...document.querySelectorAll('.wpills > .wp1.on')].map(e=>e.getBoundingClientRect().left);return {off:!!off,offL:off&&off.getBoundingClientRect().left,onMin:Math.min(...ons)}})()`);
     check('B: ✕ hides the table; its pill collapses to the far left (like the strips)', lay.off && lay.offL < lay.onMin, lay);
@@ -163,7 +163,7 @@ try {
         await b.go('?now=2026-11-02T11:50:00Z&pf=Slots_Events.Type~any~');
         await sleep(900);
         await setXs(true);
-        await b.clickSel(`.wpills .wp1[data-t="Lodging"] .x`).catch(() => {});
+        await b.clickSel(`.wpills .wp1[data-t="Lodging"] .sh`).catch(() => {});
         await b.clickSel('.wpills .wp1[data-t="Slots_Events"] .vdd');
         await sleep(300);
         await b.js(`[...document.querySelectorAll('.vmenu .vi')].find(e=>e.textContent==='הקרנה').click()`);

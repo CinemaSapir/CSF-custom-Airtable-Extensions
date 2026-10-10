@@ -181,7 +181,7 @@ bdi{unicode-bidi:isolate}
 .col.cz>.czl{display:block;position:sticky;top:10px;margin:8px auto 0;writing-mode:vertical-rl;transform:rotate(180deg);font-size:14px;font-weight:800;color:color-mix(in srgb,var(--c) 80%,#000);white-space:nowrap;line-height:var(--strip);width:var(--strip);text-align:start}
 .czl small{font-size:11.5px;font-weight:600;color:var(--sdk-gray);margin-top:6px;display:inline-block}
 .col.cz.auto>.czl{font-weight:700}
-.col.adonly,.cols>div.adonly{flex:0 0 118px}
+.col.adonly,.cols>div.adonly{flex:0 0 150px}
 /* drag-to-create, move, resize (mockup: page state only, nothing is written to Airtable) */
 .col:not(.cz){cursor:crosshair}
 .ev{cursor:grab;touch-action:none}.ev.inh{cursor:default}
@@ -569,4 +569,41 @@ html,body,.tl{background:#fff;color:var(--sdk-grayDark1)}
 .cfmenu .vi .n{color:var(--sdk-gray);font-size:11px}
 .cfmenu .cfa{display:flex;gap:12px;padding:4px 10px 2px}
 .cfmenu .cfa a{font-size:12px;color:var(--sdk-grayDark1);cursor:pointer;text-decoration:underline}
+/* ===== v0.2.6: band = name only, magnified; vertical when crowded ===== */
+.ev .lens{display:flex;padding:3px 5px;box-sizing:border-box;max-height:none}
+.ev .lens small{display:none}
+.ev .lens b.bn{margin:0;font-weight:800;line-height:1.18;color:var(--sdk-grayDark1);overflow:hidden;word-break:normal;overflow-wrap:normal;transform:none!important}
+.ev .lens.hor b.bn{display:-webkit-box;-webkit-box-orient:vertical;width:100%}
+.ev .lens.vert{justify-content:center;align-items:flex-start}
+.ev .lens.vert b.bn{display:block;writing-mode:vertical-rl;text-orientation:mixed;max-height:100%;max-width:100%;white-space:normal}
+.ev .lens.clip.hor b.bn{text-overflow:ellipsis}
+.ev .lens.clip.vert b.bn{white-space:nowrap;text-overflow:ellipsis;height:100%}
+/* v0.2.6: ⋯ + ✕ = one control group at the end edge (left in RTL) */
+.cols>div .hgrp{position:absolute;left:4px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;gap:0;border:1px solid var(--sdk-grayLight2);border-radius:6px;background:#fff;height:20px;overflow:hidden;z-index:2}
+.cols>div .hgrp .cm2,.cols>div .hgrp .cx{position:static;transform:none;height:20px;width:17px;padding:0;border-radius:0;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.cols>div .hgrp .cx{border-inline-start:1px solid var(--sdk-grayLight2)}
+.cols>div:not(.cz){padding-inline-end:41px;gap:4px}
+.cols>div.adonly .hgrp .cm2{display:inline-flex}
+/* v0.2.6 (the owner 10:41): IDENTICAL header build on every table — ⠿ · name · count · funnel · [⋯ ⇤ ✕]; nothing hidden, disabled = gray + tooltip */
+.cols>div.adonly .hd2,.cols>div.adonly .cf2,.cols>div.adonly .cx,.cols>div.adonly .cm2{display:inline-flex}
+.cols>div.adonly{justify-content:center;padding-inline-start:18px}
+.cols>div .hgrp .cm2,.cols>div .hgrp .sh,.cols>div .hgrp .cx{position:static;transform:none;height:20px;width:16px;padding:0;border-radius:0;display:inline-flex;align-items:center;justify-content:center;line-height:1;font-size:12px;color:var(--sdk-gray);cursor:pointer;font-weight:700;text-decoration:none}
+.cols>div .hgrp .cm2,.cols>div .hgrp .cx{border-inline-start:1px solid var(--sdk-grayLight2)}
+.cols>div .hgrp .sh:hover,.cols>div .hgrp .cm2:hover{background:var(--sdk-grayLight2);color:var(--sdk-grayDark1)}
+.cols>div:not(.cz){padding-inline-end:56px}
+.cols>div .dis,.cols>div .dis:hover,.wh .wp1 .dis,.wh .wp1 .dis:hover{color:var(--sdk-grayLight1)!important;background:transparent!important;cursor:not-allowed}
+.cols>div.cz .hgrp{display:none}
+/* window pills: ▾ · ⇤ · ✕ in the same order/style; shrunk = narrow strip at the far left */
+.wh .wp1 .sh{color:var(--sdk-gray);cursor:pointer;font-size:10.5px;line-height:1;padding:1px 2px;border-radius:3px;text-decoration:none}
+.wh .wp1 .sh:hover{color:var(--sdk-grayDark1);background:rgba(255,255,255,.7)}
+.wh .woff .wp1.off{padding:0 3px;gap:2px;max-width:44px;overflow:hidden;cursor:pointer}
+.wh .woff .wp1.off .ab{font-weight:700}
+/* v0.2.6: two-row header tab so 5 controls never starve the name — row 1: ⠿ · name · count; row 2: funnel … [⋯ ⇤ ✕] */
+:root{--colh:48px}
+.cols>div:not(.cz){align-items:flex-start;padding:5px 22px 0 6px;flex-wrap:nowrap}
+.cols>div .hd2{top:5px;transform:none}
+.cols>div:not(.cz) .cf2{position:absolute;bottom:4px;inset-inline-start:20px}
+.cols>div:not(.cz) .hgrp{top:auto;bottom:3px;transform:none;left:4px}
+.cols>div:not(.cz) .ldf{position:absolute;bottom:5px;right:40px;left:62px;transform:none;overflow:hidden;text-overflow:ellipsis;text-align:center;font-size:9.5px;padding:0 4px}
+.cols>div.adonly{padding-inline-start:22px}
 `;

@@ -166,6 +166,11 @@ try {
     const wall = await rng('rec48Vs9cmLVBpkQL');
     check('8: client-tz field 14:00Z (31.10, UTC+2) shows 16:00; GMT-clock field shows its clock 14:00', /16:00/.test(inst) && /14:00/.test(wall) && /17:00/.test(wall), [inst, wall]);
     // writing back into a GMT-clock field keeps the wall time: move +1h
+    // v0.2.6: compress defaults ON; this check is about time zones, so measure 1h on an uncompressed grid
+    if (await b.js(`document.querySelectorAll('.tog')[1].classList.contains('on')`)) {
+        await b.js(`document.querySelectorAll('.tog')[1].click()`);
+        await sleep(700);
+    }
     const card = await b.box('.canvas .ev[data-id="rec48Vs9cmLVBpkQL"]');
     const pxh = await b.js(`(()=>{const t=[...document.querySelectorAll('.axis .hlab[data-tick]')];const a=t.find(e=>e.textContent==='16:00'),c=t.find(e=>e.textContent==='17:00');return c.getBoundingClientRect().top-a.getBoundingClientRect().top})()`);
     const cx = card.x + card.w / 2,

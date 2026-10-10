@@ -109,11 +109,11 @@ try {
 
     // ---------------- band: the title shows once
     const lens = await b.js(`[...document.querySelectorAll('.canvas .ev')].filter(e=>e.querySelector('.lens')).map(e=>{const l=e.querySelector('.lens'),own=e.querySelector(':scope > b'),lr=l.getBoundingClientRect(),or=own.getBoundingClientRect();
-      const ownVis=getComputedStyle(own).visibility!=='hidden';const names=[...e.querySelectorAll('b')].filter(x=>getComputedStyle(x).visibility!=='hidden'&&x.textContent===own.textContent).length;return {n:own.textContent,names,head:e.classList.contains('lenshead'),ownVis,overlap:ownVis&&or.bottom>lr.top+1&&or.top<lr.bottom-1}})`);
+      const ownVis=getComputedStyle(own).visibility!=='hidden';const names=[...e.querySelectorAll('b')].filter(x=>{const q=x.getBoundingClientRect();return getComputedStyle(x).visibility!=='hidden'&&x.textContent===own.textContent&&q.bottom>lr.top+1&&q.top<lr.bottom-1}).length;return {n:own.textContent,names,head:e.classList.contains('lenshead'),ownVis,overlap:ownVis&&or.bottom>lr.top+1&&or.top<lr.bottom-1}})`);
     const gp = lens.find(x => /גבול פתוח/.test(x.n));
     check('«הקרנה: גבול פתוח» is in the band, lens owns its head and the own title is hidden (title once)', gp && gp.head && !gp.ownVis, gp);
     check('no card in the band shows its own title under/over the lens', lens.length > 0 && lens.every(x => !x.overlap), lens);
-    check('every card in the band shows its name exactly once', lens.every(x => x.names === 1), lens.map(x => [x.n, x.names]));
+    check('every card in the band shows its name exactly once inside the band (v0.2.6: the lens = name only)', lens.every(x => x.names === 1), lens.map(x => [x.n, x.names]));
     if (shots) {
         const r = await b.js(`(()=>{const e=[...document.querySelectorAll('.canvas .ev')].find(e=>/גבול פתוח/.test(e.textContent));const r=e.getBoundingClientRect();return {x:Math.max(0,r.left-130),y:Math.max(0,r.top-110),width:r.width+180,height:r.height+170}})()`);
         await b.shot(resolve(EV, 'ui-v023-band-card.png'), r);
