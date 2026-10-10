@@ -1,0 +1,68 @@
+=== EXTENSION_CONFIG POPULATE — PART 7 of 7: Hospitality «אירוח» — MAP ONLY, not wired ===
+Paste this part on its own into Omni (Airtable AI) on PROD. Parts can be pasted in any order; each part is self-contained.
+
+Work ONLY in the table Extension_Config of this base. Do not create, rename, delete or change any table, field, view, automation, interface, or any record in any other table. Never delete a record. Never create a field: if a field named below does not exist, skip it and list it in your reply.
+
+UPSERT RULES (follow exactly):
+1. Find the record whose Extension equals the value below AND whose Variant equals the value below (compare trimmed; "Variant: (empty)" means the Variant cell is empty).
+2. If no such record exists: create ONE record with exactly the cells listed below. Every other cell stays empty and every other checkbox stays unticked.
+3. If exactly one such record exists: for each cell listed below, write it ONLY if that cell is empty right now. If it already has any value, even a different one, leave it exactly as it is and list it in your reply (field + current value). Never clear a cell.
+4. If more than one record matches, change nothing for that Extension + Variant and reply with their record ids.
+5. Checkboxes on an existing record: tick Toggle_N only if it is unticked now AND that record's Toggle_Label_N was empty before you started (a filled label means someone already set that toggle). Never untick any checkbox. "unticked" below means: leave it unticked.
+6. Never touch these fields: Owner, Use_Defaults_Only (on existing records), Attachment_1-3, Slot_Map, Code_Version, Last_Synced, Sync_Note.
+
+HOW TO WRITE THE VALUES:
+- Each line is "Field: value". Everything after the first ": " is the exact cell value. Copy it character for character, including Hebrew, emoji, arrows, symbols, braces like {n}, «», trailing "…" and spaces around "|". Do not translate, fix spelling or reorder.
+- Table.Field values (e.g. Slots_Events.Status) are plain text: type them as written, do not turn them into links.
+- Multi-line values (Option_List_N, Notes): one line in the cell per line shown, without the leading spaces, in the same order. A line starting with # is a comment and is part of the value.
+- Filter_Operator_N is a single select: choose the existing option with exactly that text. Never add an option.
+- Date_N fields use the Asia/Jerusalem time zone; enter the Israel time given and check the cell shows it.
+- Duration_N is h:mm. Number_N is a plain number.
+
+--- RECORD: Hospitality «אירוח» — MAP ONLY, not wired ---
+- Extension: hospitality
+- Variant: (empty)
+- Display_Name: אירוח – מיפוי בלבד (לא מחובר עדיין)
+- Title: אירוח
+- Heading_1: פילוח אחד על המסך. היום והאדם נשארים.
+- Helper_Text_1: [חיפוש]
+- Content_Text_1: הקשר:
+- Content_Text_2: {n} רשומות · {table}
+- Content_Text_3: עוד {n} — צמצם בחיפוש
+- Content_Text_4: (בלי שם)
+- Tab_Label_1: יום
+- Tab_Label_2: אנשים
+- Tab_Label_3: שיבוץ
+- Tab_Label_4: אוכל + שתיה
+- Tab_Label_5: לינה
+- Tab_Label_6: נסיעות
+- Tab_Label_7: כל הימים
+- Tab_Label_8: כל האנשים
+- Button_Text_1: נקה
+- Empty_State_Text_1: אין תוצאות לפילוח הזה
+- Error_Text_1: טבלה חסרה: {table}
+- Source_Table_1: Itinerary
+- Source_Table_2: People
+- Source_Table_3: Staffing
+- Source_Table_4: Vouchers
+- Source_Table_5: Lodging
+- Source_Table_6: Trips
+- Option_List_1: (3 lines, one per line, exactly as below)
+      all | הכל
+      planned | מתוכנן
+      done | בוצע
+- Option_List_2: (4 lines, one per line, exactly as below)
+      # טבלה | מילת «בוצע» | מילת «לא בוצע» (הצעה, לא מחובר)
+      Vouchers | ניתן | מתוכנן
+      Staffing | בוצע | מתוכנן
+      Trips | מתואם | לא מתואם
+- Number_1: 80
+- Notes: לא מחובר עדיין — שורה לעיון בלבד. תוסף האירוח (תוסף בסיס ישן) לא קורא את הטבלה הזו; צריך קודם להעביר אותו ל-interface SDK (maps/hospitality.md). שינוי בתאים כאן לא ישנה כלום במסך.
+(29 cells besides Extension and Variant.)
+
+When done, reply with, for each record above:
+- the record id, and whether you CREATED it or UPDATED an existing one;
+- how many cells you wrote;
+- every listed cell you left alone because it already had a value (field + its current value);
+- every field you could not find or could not write exactly (field + what happened).
+Touch nothing else in the base and do not "fix" anything else.

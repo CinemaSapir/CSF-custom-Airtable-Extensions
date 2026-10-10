@@ -1,0 +1,77 @@
+=== EXTENSION_CONFIG POPULATE — PART 6 of 7: קופי פייסט – הזנה מרובה (אנשים ותפקידים) v0.5.0 ===
+Paste this part on its own into Omni (Airtable AI) on PROD. Parts can be pasted in any order; each part is self-contained.
+
+Work ONLY in the table Extension_Config of this base. Do not create, rename, delete or change any table, field, view, automation, interface, or any record in any other table. Never delete a record. Never create a field: if a field named below does not exist, skip it and list it in your reply.
+
+UPSERT RULES (follow exactly):
+1. Find the record whose Extension equals the value below AND whose Variant equals the value below (compare trimmed; "Variant: (empty)" means the Variant cell is empty).
+2. If no such record exists: create ONE record with exactly the cells listed below. Every other cell stays empty and every other checkbox stays unticked.
+3. If exactly one such record exists: for each cell listed below, write it ONLY if that cell is empty right now. If it already has any value, even a different one, leave it exactly as it is and list it in your reply (field + current value). Never clear a cell.
+4. If more than one record matches, change nothing for that Extension + Variant and reply with their record ids.
+5. Checkboxes on an existing record: tick Toggle_N only if it is unticked now AND that record's Toggle_Label_N was empty before you started (a filled label means someone already set that toggle). Never untick any checkbox. "unticked" below means: leave it unticked.
+6. Never touch these fields: Owner, Use_Defaults_Only (on existing records), Attachment_1-3, Slot_Map, Code_Version, Last_Synced, Sync_Note.
+
+HOW TO WRITE THE VALUES:
+- Each line is "Field: value". Everything after the first ": " is the exact cell value. Copy it character for character, including Hebrew, emoji, arrows, symbols, braces like {n}, «», trailing "…" and spaces around "|". Do not translate, fix spelling or reorder.
+- Table.Field values (e.g. Slots_Events.Status) are plain text: type them as written, do not turn them into links.
+- Multi-line values (Option_List_N, Notes): one line in the cell per line shown, without the leading spaces, in the same order. A line starting with # is a comment and is part of the value.
+- Filter_Operator_N is a single select: choose the existing option with exactly that text. Never add an option.
+- Date_N fields use the Asia/Jerusalem time zone; enter the Israel time given and check the cell shows it.
+- Duration_N is h:mm. Number_N is a plain number.
+
+--- RECORD: קופי פייסט – הזנה מרובה (אנשים ותפקידים) v0.5.0 ---
+- Extension: bulk-sheet
+- Variant: (empty)
+- Display_Name: קופי פייסט – הזנה מרובה (אנשים ותפקידים)
+- Title: קופי פייסט - הזנה מרובה
+- Heading_1: אנשים, תפקידים ופרטי קשר
+- Table_Heading_1: שם
+- Table_Heading_2: טלפון אישי
+- Table_Heading_3: אימייל אישי
+- Table_Heading_4: תפקיד
+- Table_Heading_5: טלפון עבודה
+- Table_Heading_6: אימייל עבודה
+- Table_Heading_7: שותף עסקי
+- Table_Heading_8: תיקון
+- Table_Heading_9: לדלג
+- Helper_Text_1: יש לכם רשימה באקסל? העתיקו והדביקו כאן. העמודות יצאו הפוכות? לחצו על **הפוך עמודות**.
+- Helper_Text_2: עמודה במקום הלא נכון? גררו אותה מהאות שלה (א ב ג) למקום הנכון.
+- Helper_Text_3: הופך את סדר הנתונים בכל השורות (הכותרות נשארות במקום)
+- Helper_Text_4: Tab / Enter / חצים לתנועה · סימון תאים + Ctrl+C / Ctrl+X / Ctrl+V · הדבקה מאקסל או Google Sheets · טלפונים לפי ספרות (+972 = 0)
+- Helper_Text_5: השורה מסומנת ב־/ ולכן לא תועלה
+- Content_Text_1: לנקות הכל?
+- Content_Text_2: בטוח?
+- Content_Text_3: שולח…
+- Content_Text_4: ✓ נשלח
+- Content_Text_5: מדלג על השם
+- Button_Text_1: ⇄ הפוך עמודות
+- Button_Text_2: 🧹 נקה טבלה
+- Button_Text_3: + עוד {n} שורות
+- Button_Text_4: כן, שלח
+- Button_Text_5: ביטול
+- Button_Text_6: נקה
+- Empty_State_Text_1: הדביקו כאן רשימה, אנחנו נסדר את השאר ✨
+- Error_Text_1: הטבלאות הבאות לא זמינות לתוסף: {tables}. יש לבחור אותן בפאנל המאפיינים של האלמנט.
+- Error_Text_2: השדה **{field}** לא מופעל ברכיב — הפעילו אותו (קריאה בלבד מספיק) בפאנל הנתונים של הרכיב ורעננו.
+- Error_Text_3: פתיחת רשומה כבויה ברכיב הזה — יש להפעיל "Click into record details" בהגדרות הרכיב
+- Source_Table_1: People
+- Source_Table_2: Roles
+- Source_Table_3: Assignments
+- Color_1: #16a34a
+- Color_2: #dc2626
+- Color_3: #2563eb
+- Color_4: #f59e0b
+- Color_5: #a855f7
+- Color_6: #0ea5e9
+- Number_1: 20
+- Number_2: 50
+- Number_3: 10
+- Notes: מולא 2026-10-10 מברירות המחדל בקוד של bulk-sheet v0.5.0 (cfg.ts). תא ריק = ברירת המחדל בקוד. החלונית הימנית גוברת על Source_Table.
+(45 cells besides Extension and Variant.)
+
+When done, reply with, for each record above:
+- the record id, and whether you CREATED it or UPDATED an existing one;
+- how many cells you wrote;
+- every listed cell you left alone because it already had a value (field + its current value);
+- every field you could not find or could not write exactly (field + what happened).
+Touch nothing else in the base and do not "fix" anything else.

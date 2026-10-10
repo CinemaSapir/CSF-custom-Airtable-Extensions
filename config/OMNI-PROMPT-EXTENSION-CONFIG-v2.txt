@@ -1,0 +1,105 @@
+Create ONE new table in this base. Do not change, rename, delete or add anything in any other table, field, view, automation or interface.
+
+Table name: Extension_Config
+Table description: הגדרות משותפות לכל התוספים המותאמים (Custom extensions) — קיימים ועתידיים. שורה אחת לכל תוסף (Variant ריק = ברירת מחדל) + שורות Variant לעמוד/מצב מסוים. תא ריק = יורש משורת ברירת המחדל / מברירת המחדל שבקוד. שינוי תא מתעדכן במסך מיד. הקוד ממלא רק תאים ריקים של משבצות חדשות ולעולם לא דורס ערך קיים. הפניה לשדה תמיד בכתיב Table.Field.
+
+Rules:
+- Field names exactly as written below: English letters, digits and underscores only. No Hebrew, no spaces, no emoji in field names.
+- Every Hebrew text below goes into the field DESCRIPTION, not the name.
+- In every description, replace N with the field's own number.
+- "X_1 to X_10 (10 fields)" means create X_1, X_2, … X_10, all with the same type and description pattern.
+- Checkbox fields must be real Airtable Checkbox fields (a checkbox you can tick). Do NOT make them text, "true/false", Yes/No single select, or formulas.
+- Long text fields: plain long text, rich text formatting OFF.
+- Single select fields: exactly the options listed, nothing more.
+- Do not add any extra fields, link fields, lookups, rollups or formulas. Do not add a "Created" or "Status" field.
+- Create the fields in exactly the order below, group by group. Total: exactly 218 fields.
+
+Fields (name | type | description):
+
+Group 1 — Identity and control (6 fields):
+- Extension | Single line text (PRIMARY field — rename the primary field to this) | מפתח קבוע באנגלית לכל תוסף/מסך, למשל countdown-homescreen. הקוד מחפש את השורה לפי Extension + Variant — לא לשנות אחרי שנקבע
+- Variant | Single line text | ריק = שורת ברירת המחדל של התוסף. ערך (למשל mine, by-day) = גרסה לעמוד/מצב מסוים: תא מלא כאן גובר, תא ריק יורש משורת ברירת המחדל
+- Display_Name | Single line text | שם התוסף/המסך בעברית ובאיזה עמוד הוא משמש — לתצוגה בלבד
+- Block_ID | Single line text | מזהה התוסף ב-Airtable (blk…). הקוד ממלא אוטומטית אם ריק
+- Use_Defaults_Only | Checkbox (real checkbox, green check icon) | מתג חירום. מסומן בשורת ברירת המחדל = כל התוסף חוזר לברירות המחדל שבקוד. מסומן בשורת Variant = השורה הזו נעקפת ומשתמשים בשורת ברירת המחדל
+- Owner | User (collaborator), single user, notifications OFF | האחראי/ת על ההגדרות של התוסף. הקוד לא נוגע בשדה
+
+Group 2 — Texts — the owner's stencil (41 fields):
+- Title | Single line text | כותרת ראשית של המסך
+- Heading_1 to Heading_5 (5 fields) | Single line text | כותרת משנה N — המשמעות בכל תוסף מפורטת ב-Slot_Map
+- Table_Heading_1 to Table_Heading_10 (10 fields) | Single line text | כותרת עמודה/טבלה N — ראו Slot_Map
+- Helper_Text_1 to Helper_Text_10 (10 fields) | Long text (plain, rich text OFF) | טקסט עזרה N (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Content_Text_1 to Content_Text_15 (15 fields) | Long text (plain, rich text OFF) | טקסט תוכן N (תוויות, הודעות, פסקאות) — ראו Slot_Map
+
+Group 3 — Interface texts (30 fields):
+- Tab_Label_1 to Tab_Label_10 (10 fields) | Single line text | תווית לשונית / כפתור בחירה N — ראו Slot_Map
+- Button_Text_1 to Button_Text_10 (10 fields) | Single line text | טקסט כפתור N — ראו Slot_Map
+- Empty_State_Text_1 to Empty_State_Text_5 (5 fields) | Long text (plain, rich text OFF) | הודעה כשאין מה להציג N — ראו Slot_Map
+- Error_Text_1 to Error_Text_5 (5 fields) | Long text (plain, rich text OFF) | הודעת שגיאה N — ראו Slot_Map
+
+Group 4 — Sources (30 fields):
+- Source_Table_1 to Source_Table_10 (10 fields) | Single line text | טבלת מקור N: שם טבלה מדויק באנגלית (או tbl…). הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Field_1 to Source_Field_20 (20 fields) | Single line text | שדה מקור N. כתיב אחיד: Table.Field (שם טבלה, נקודה, שם שדה — למשל Slots_Events.Status). מותר גם מזהים tbl…/fld…. שם שדה בלי טבלה = שדה בתוך Source_Table_N (או Source_Table_1 מעל 10). השדה חייב להיות מאופשר באלמנט
+
+Group 5 — Filters and sort (24 fields):
+- Repeat for N = 1 to 5, in this order per N (20 fields): Filter_N, Filter_Operator_N, Filter_Value_N, Filter_Label_N
+    - Filter_N | Single line text | שדה לסינון N. כתיב אחיד: Table.Field (שם טבלה, נקודה, שם שדה — למשל Slots_Events.Status). מותר גם מזהים tbl…/fld…. שדה בלי טבלה = בתוך Source_Table_1
+    - Filter_Operator_N | Single select with exactly these options: is, is not, contains, does not contain, is empty, is not empty, is before, is after, greater than, less than, is checked, is not checked | אופרטור לסינון N (ריק = is)
+    - Filter_Value_N | Single line text | ערך לסינון N. כמה ערכים — מפרידים בקו אנכי «|» (או). כשיש Filter_Label_N זה ערך ההתחלה של המסנן במסך
+    - Filter_Label_N | Single line text | תווית המסנן N במסך. ריק = מסנן קבוע ומוסתר (תמיד פועל)
+- Repeat for N = 1 to 2, in this order per N (4 fields): Sort_N, Sort_Direction_N
+    - Sort_N | Single line text | שדה למיון N. כתיב אחיד: Table.Field (שם טבלה, נקודה, שם שדה — למשל Slots_Events.Status). מותר גם מזהים tbl…/fld…
+    - Sort_Direction_N | Single select with exactly these options: asc, desc | כיוון מיון N (ריק = asc)
+
+Group 6 — Dropdowns and option lists (20 fields):
+- Repeat for N = 1 to 5, in this order per N (15 fields): Dropdown_N, Dropdown_Label_N, Dropdown_Default_N
+    - Dropdown_N | Single line text | מקור הבחירות של תפריט נפתח N: שם טבלה = הרשומות שלה; Table.Field = האפשרויות/הערכים של השדה; ריק = השורות של Option_List_N
+    - Dropdown_Label_N | Single line text | תווית התפריט הנפתח N במסך. ריק = לא מוצג, ו-Dropdown_Default_N הוא הגדרה קבועה
+    - Dropdown_Default_N | Single line text | הבחירה ההתחלתית בתפריט N (שם רשומה / אפשרות). המשתמש יכול לשנות והבחירה שלו נשמרת
+- Option_List_1 to Option_List_5 (5 fields) | Long text (plain, rich text OFF) | רשימת אפשרויות N: שורה לכל אפשרות. אפשר 4 חלקים מופרדים בקו אנכי «|»: ערך, תווית, צבע, אייקון (למשל «הקרנה | הקרנה | #2563eb | 🎬»). שורה שמתחילה ב-# = הערה
+
+Group 7 — Look (20 fields):
+- Color_1 to Color_10 (10 fields) | Single line text | צבע N בקוד hex, למשל #2563eb — ראו Slot_Map
+- Icon_1 to Icon_10 (10 fields) | Single line text | אייקון N: אימוג׳י או טקסט קצר — ראו Slot_Map
+
+Group 8 — Links and media (8 fields):
+- URL_1 to URL_5 (5 fields) | URL | קישור N — ראו Slot_Map
+- Attachment_1 to Attachment_3 (3 fields) | Attachment | קובץ/תמונה N (לוגו, רקע). הקוד לא כותב לשדה הזה
+
+Group 9 — Values (33 fields):
+- Date_1 to Date_5 (5 fields) | Date with time — 24-hour format, time zone Asia/Jerusalem, 'Use the same time zone for all collaborators' ON | תאריך ושעה N (למשל מועד יעד) — שעון ישראל
+- Number_1 to Number_10 (10 fields) | Number, decimal, 2 decimal places, negatives allowed | מספר N (סף, מגבלה, כמות, גודל) — ראו Slot_Map
+- Goal_1 to Goal_5 (5 fields) | Number, integer (0 decimal places) | יעד N — ה-Y ב«X מתוך Y» של אריח/מד התקדמות N. ריק = בלי «מתוך»
+- Toggle_1 to Toggle_10 (10 fields) | Checkbox (real checkbox, green check icon) | ברירת המחדל של מתג N במסך: מסומן = מתחיל דלוק, ריק = מתחיל כבוי. המשתמש יכול להחליף, והבחירה שלו נשמרת
+- Duration_1 to Duration_3 (3 fields) | Duration, format h:mm | משך N (למשל קנה מידה של 30 דקות, חלון ביטול) — ראו Slot_Map
+
+Group 10 — Advanced (1 field):
+- Advanced_JSON | Long text (plain, rich text OFF) | מוצא חירום למבנה מורכב. JSON תקין בלבד; JSON שבור = הקוד מתעלם ומדווח ב-Sync_Note
+
+Group 11 — Code-owned (4 fields):
+- Slot_Map | Long text (plain, rich text OFF) | נכתב אוטומטית ע״י הקוד: מה כל משבצת אומרת בתוסף הזה + ברירת המחדל שלה. לא לערוך ידנית
+- Code_Version | Single line text | גרסת הקוד האחרונה שסנכרנה את השורה (נכתב ע״י הקוד)
+- Last_Synced | Date with time — 24-hour format, time zone Asia/Jerusalem | מועד הסנכרון האחרון של הקוד (נכתב ע״י הקוד)
+- Sync_Note | Single line text | הודעת סנכרון מהקוד: ✓ או רשימת שדות שלא מאופשרים באלמנט (נכתב ע״י הקוד)
+
+Group 12 — Free (1 field):
+- Notes | Long text (plain, rich text OFF) | הערות חופשיות לעורכים
+
+Then create exactly ONE record:
+- Extension: countdown-homescreen
+- Variant: (leave empty — this is the default row)
+- Display_Name: ספירה לאחור – מסך בית
+- Block_ID: <block-id-redacted>
+- Use_Defaults_Only: unchecked
+- Title: יאללה היידה!
+- Content_Text_1: כרטיסים שנמכרו
+- Content_Text_2: הזמנות שנשלחו
+- Source_Table_1: Tickets
+- Source_Table_2: Invitations
+- Source_Table_3: Slots_Events
+- Source_Field_3: Slots_Events.Status
+- Option_List_1: משובץ
+- Date_1 (fallback only, used if no משובץ slots are found): 24 October 2026, 20:00 Israel time (Asia/Jerusalem). In UTC that is 2026-10-24T17:00:00.000Z — check the cell shows 24/10/2026 20:00.
+- Leave every other field of this record EMPTY and every other checkbox unticked (the extension fills Slot_Map, Code_Version, Last_Synced, Sync_Note and its own defaults itself).
+
+When done, reply with: the table name, the number of fields created (should be exactly 218), the number of records (should be 1), and a list of any field you could not create exactly as specified (name + what you did instead). Touch nothing else in the base and do not "fix" anything else.

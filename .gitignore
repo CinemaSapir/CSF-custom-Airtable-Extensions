@@ -1,0 +1,28 @@
+# dependencies / build output
+node_modules/
+build/
+dist/
+.tmp/
+tests/.out/
+harness/out/
+# Airtable CLI state and credentials — never commit
+.block/
+remote.json
+.airtableblocksrc
+.airtableblocksrc.json
+*rc.json
+.npmrc
+.env
+.env.*
+# release artefacts from the laptop (paths, logs, tarballs)
+release/
+*.log
+*.tar
+*.tgz
+*.zip
+# harness screenshots / evidence (may show real data)
+evidence/
+*.panel*.png
+# OS
+.DS_Store
+Thumbs.db

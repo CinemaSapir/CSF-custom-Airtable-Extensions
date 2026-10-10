@@ -1,0 +1,88 @@
+=== EXTENSION_CONFIG POPULATE — PART 4 of 7: רשימות (Lists UI) v0.6.0 ===
+Paste this part on its own into Omni (Airtable AI) on PROD. Parts can be pasted in any order; each part is self-contained.
+
+Work ONLY in the table Extension_Config of this base. Do not create, rename, delete or change any table, field, view, automation, interface, or any record in any other table. Never delete a record. Never create a field: if a field named below does not exist, skip it and list it in your reply.
+
+UPSERT RULES (follow exactly):
+1. Find the record whose Extension equals the value below AND whose Variant equals the value below (compare trimmed; "Variant: (empty)" means the Variant cell is empty).
+2. If no such record exists: create ONE record with exactly the cells listed below. Every other cell stays empty and every other checkbox stays unticked.
+3. If exactly one such record exists: for each cell listed below, write it ONLY if that cell is empty right now. If it already has any value, even a different one, leave it exactly as it is and list it in your reply (field + current value). Never clear a cell.
+4. If more than one record matches, change nothing for that Extension + Variant and reply with their record ids.
+5. Checkboxes on an existing record: tick Toggle_N only if it is unticked now AND that record's Toggle_Label_N was empty before you started (a filled label means someone already set that toggle). Never untick any checkbox. "unticked" below means: leave it unticked.
+6. Never touch these fields: Owner, Use_Defaults_Only (on existing records), Attachment_1-3, Slot_Map, Code_Version, Last_Synced, Sync_Note.
+
+HOW TO WRITE THE VALUES:
+- Each line is "Field: value". Everything after the first ": " is the exact cell value. Copy it character for character, including Hebrew, emoji, arrows, symbols, braces like {n}, «», trailing "…" and spaces around "|". Do not translate, fix spelling or reorder.
+- Table.Field values (e.g. Slots_Events.Status) are plain text: type them as written, do not turn them into links.
+- Multi-line values (Option_List_N, Notes): one line in the cell per line shown, without the leading spaces, in the same order. A line starting with # is a comment and is part of the value.
+- Filter_Operator_N is a single select: choose the existing option with exactly that text. Never add an option.
+- Date_N fields use the Asia/Jerusalem time zone; enter the Israel time given and check the cell shows it.
+- Duration_N is h:mm. Number_N is a plain number.
+
+--- RECORD: רשימות (Lists UI) v0.6.0 ---
+- Extension: lists-ui
+- Variant: (empty)
+- Display_Name: רשימות (Lists UI)
+- Block_ID: <block-id-redacted>
+- Title: רשימות
+- Heading_1: כל הרשימות
+- Heading_2: הרשימות שלי
+- Heading_3: משותפות איתי
+- Heading_4: ציבוריות
+- Heading_5: 📋 הרשימות שלי
+- Helper_Text_2: הרשימה מציגה מעקב תפעולי בלבד (תפקיד / סטטוס / רמת גישה). פרטי קשר ומזהים אישיים אינם מוצגים כאן — ואין לשתף את קישור הממשק מעבר לנדרש.
+- Helper_Text_3: חיפוש רשימה…
+- Helper_Text_4: הוסיפו הערה…
+- Helper_Text_5: הוסיפו תיאור…
+- Helper_Text_6: ציבוריות בלבד
+- Content_Text_1: רשימות מוסתרות ({n})
+- Content_Text_2: מוסתרת
+- Content_Text_3: רשימה חדשה ✨
+- Content_Text_6: ⚡ דינמית
+- Content_Text_7: ✓ עם סימונים
+- Content_Text_8: הרשימה עדיין ריקה
+- Content_Text_9: אין כרגע פריטים תואמים
+- Content_Text_10: ניקוי החיפוש
+- Tab_Label_1: הכל
+- Tab_Label_2: שלי
+- Tab_Label_3: משותפות איתי
+- Tab_Label_4: ציבוריות
+- Tab_Label_5: ▦ גלריה
+- Tab_Label_6: ☰ רשימה
+- Button_Text_1: + רשימה חדשה
+- Button_Text_2: + יצירת הרשימה הראשונה
+- Button_Text_3: + הוספת פריט
+- Button_Text_4: + הוסף לרשימה
+- Button_Text_5: → כל הרשימות
+- Button_Text_6: מחק רשימה
+- Button_Text_7: הסתר
+- Button_Text_8: הצג רשימה
+- Button_Text_9: יצירת רשימה
+- Button_Text_10: ניקוי סינון
+- Empty_State_Text_1: עוד אין כאן רשימות
+- Empty_State_Text_2: רשימה אחת קטנה וכבר יש סדר: סרטים לצפייה, משבצות לבדיקה, אנשים לתאם.
+- Empty_State_Text_3: אין רשימות בקטגוריה הזו כרגע.
+- Empty_State_Text_4: כל הרשימות כאן מוסתרות.
+- Empty_State_Text_5: ✨ אין כאן רשימות עדיין.
+- Error_Text_1: אין לך הרשאה ליצור רשימה כאן. בדקו שיתוף הממשק (Can edit records / הוספת רשומות) והרשאות טבלת Lists.
+- Error_Text_2: טבלת הרשימות או טבלת פריטי הרשימה לא זמינות לתוסף. יש לבחור אותן בפאנל המאפיינים של האלמנט.
+- Error_Text_3: חסרים שדות בהגדרות האלמנט: {fields}. יש להפעיל אותם בפאנל השדות של האלמנט.
+- Error_Text_4: יש לבחור בהגדרות האלמנט את טבלת הרשומה: סרטים, משבצות או אנשים.
+- Error_Text_5: אין לך הרשאה לשנות את הרשימה הזו.
+- Source_Table_1: Lists
+- Source_Table_2: List Item
+- Source_Table_3: Films
+- Source_Table_4: Slots_Events
+- Source_Table_5: People
+- Source_Table_6: Checklists
+- Source_Table_7: List_Sources
+- Number_1: 6
+- Notes: מולא 2026-10-10 מברירות המחדל בקוד של lists-ui v0.6.0 (cfg.ts). תא ריק = ברירת המחדל בקוד. החלונית הימנית גוברת על Source_Table.
+(56 cells besides Extension and Variant.)
+
+When done, reply with, for each record above:
+- the record id, and whether you CREATED it or UPDATED an existing one;
+- how many cells you wrote;
+- every listed cell you left alone because it already had a value (field + its current value);
+- every field you could not find or could not write exactly (field + what happened).
+Touch nothing else in the base and do not "fix" anything else.

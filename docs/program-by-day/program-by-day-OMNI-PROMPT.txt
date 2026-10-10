@@ -1,0 +1,89 @@
+=== PASTE INTO OMNI ON THE PAGE «פרוגרמה - לפי יום» (DEMO appiN9MrP73g6R9hi · page pagPs4kng0DiKgxrl · custom element <block-id-redacted>) ===
+=== Paste ONLY after the Extension_Config table exists in this base (the 269-field prompt). Map: maps/program-by-day.md ===
+
+Change ONLY the custom element on this page («פרוגרמה - לפי יום»). Do not change any table, field, record, view, automation, other page or other element. Do not write to the Extension_Config table: this element only READS it.
+
+Goal: the element reads its settings from the shared Extension_Config table (one row per extension). Its own custom properties (right pane) always win. When a setting is not in the table, keep exactly what the element does today. Only one visible change is intended: the toggle «הסתר מיקומים ריקים» must start ON.
+
+1) Add three custom properties to the element (keep every existing custom property exactly as it is: Events, Tasks, Projects, Locations, Start, End, Area, Project, Location, פערים, Day field, Event type):
+- configTable — table picker, label «טבלת הגדרות (Extension_Config) – לא חובה». Default: the table named Extension_Config if it exists, else empty. Optional.
+- configSlug — text, label «מפתח הגדרות (Extension)», default program-by-day
+- configVariant — text, label «גרסת עמוד (Variant)», default by-location
+
+2) Which rows to read (from configTable; if it is empty, not enabled on the element, or has no matching row, skip this step and use the code defaults):
+- VARIANT row = the record where Extension = configSlug and Variant = configVariant (compare trimmed, case-insensitive).
+- DEFAULT row = the record where Extension = configSlug and Variant is empty.
+- If the DEFAULT row has Use_Defaults_Only checked → ignore both rows (code defaults only). If only the VARIANT row has it checked → ignore the VARIANT row.
+- Read every field by NAME. A field that does not exist or is not enabled on the element = empty (never an error, never a crash).
+
+3) Value of each setting, in this order:
+  a. the element's own custom property, when it has a value (right pane FIRST);
+  b. the VARIANT row cell, when it is not empty;
+  c. the DEFAULT row cell, when it is not empty;
+  d. the code default = what the element does today (listed below).
+- Toggles are checkboxes and have no «empty» state, so for Toggle_N use: the VARIANT row's Toggle_N only if that row's Toggle_Label_N is filled; else the DEFAULT row's Toggle_N only if that row's Toggle_Label_N is filled; else the code default.
+- A user's own choice in the page (flipping a toggle, picking a dropdown value) is remembered for that user in this browser and wins over the row default the next time they open the page. Clearing the browser storage = back to the row defaults.
+- Changes in the Extension_Config row show up live (no reload needed).
+
+4) Settings to read (slot name in Extension_Config → element):
+- Toggle_1 + Toggle_Label_1 → the toggle «הסתר מיקומים ריקים». Code default: ON (CHANGED — today it starts OFF), label «הסתר מיקומים ריקים». If Toggle_Label_1 is filled, show that text as the label.
+- Toggle_2 + Toggle_Label_2 → the toggle «כווץ משבצות ריק». Code default: ON, label «כווץ משבצות ריק».
+- Dropdown_Label_1 / Dropdown_Default_1 / Option_List_1 → «צבע לפי». Code default: label «צבע לפי», start value = Event type (סוג ארוע), today's options.
+- Dropdown_Label_2 / Dropdown_Default_2 / Option_List_2 → «ערכת צבעים». Code default: «ברירת מחדל», today's options.
+- Dropdown_Label_3 / Dropdown_Default_3 / Option_List_3 → «סקאלת זמן». Code default: 30 דקות, today's options.
+- Dropdown_Label_4 / Dropdown_Default_4 / Option_List_4 → «גודל טקסט». Code default: רגיל, today's options.
+- Dropdown_Label_5 / Dropdown_Default_5 / Option_List_5 → «תצוגה שנייה». Code default: פרויקט, today's options.
+- Dropdown_Label_6 / Dropdown_Default_6 → «יום». Code default: the first festival day, as today.
+- Table_Heading_1 → the time-axis header «שעה». Code default: שעה.
+- Option_List_9 → legend override (one line per Event type value: value | label | colour |). Empty = today's legend (the Airtable select colours).
+- Helper_Text_1 → search placeholder, Empty_State_Text_1 → the «nothing to show» text — only if the element has them today; otherwise ignore.
+- Source_Table_1–5 → Events, Tasks, Projects, Locations, Area tables, and Source_Field_1–7 → Start, End, Project, Location, פערים, Day field, Event type — ONLY when the matching custom property is empty. Values are names: a table name, or Table.Field (e.g. Slots_Events.Start); a field without a table = a field of the Events table. Match names ignoring case and spaces; ids (tbl…/fld…) are also accepted.
+- Filter_6 and Filter_7 (field Table.Field, Filter_Operator_N, Filter_Value_N; several values separated by «|»): extra hidden filters on Events. Apply ONLY when Filter_N is filled; empty = no extra filter (as today). Operators: is, is not, contains, does not contain, is empty, is not empty, is before, is after.
+
+Rules for option lists (Option_List_N): one option per line, up to 4 parts separated by «|»: value | label | colour | icon. Only the value is required; empty label = the value. A line starting with # is a comment. When Option_List_N is empty, keep today's options for that dropdown.
+
+5) Never:
+- write to Extension_Config or any other table because of this change;
+- show an error when Extension_Config is missing, empty or not enabled (the page must look and work exactly as today, except toggle 1 now starts ON);
+- let a config value hide records the user is allowed to see, except through Filter_6/Filter_7 above.
+
+When done, reply with:
+- the list of custom properties now on the element (old + the 3 new);
+- for each item in step 4: done / not possible (and why);
+- confirmation that with Extension_Config absent the page looks the same as before except «הסתר מיקומים ריקים» starting ON.
+
+=== OPTIONAL SECOND PROMPT (paste separately, only if the owner wants the rows now; creates 2 records in Extension_Config, touches nothing else) ===
+
+In the table Extension_Config create exactly TWO records, and change nothing else in the base. If a record with the same Extension + Variant already exists, do not create it again; reply with its record id instead.
+
+Record 1 (default row):
+- Extension: program-by-day
+- Variant: (empty)
+- Display_Name: פרוגרמה – לפי יום / טיימליין (שורה משותפת)
+- Toggle_1: checked
+- Toggle_Label_1: כווץ עמודות ריקות
+- Table_Heading_1: שעה
+- Leave every other field empty and every other checkbox unticked.
+
+Record 2 (live page):
+- Extension: program-by-day
+- Variant: by-location
+- Display_Name: פרוגרמה – לפי יום (עמוד pagPs4kng0DiKgxrl)
+- Block_ID: <block-id-redacted>
+- Title: פרוגרמה – לפי יום
+- Toggle_1: checked
+- Toggle_Label_1: כווץ עמודות ריקות
+- Toggle_2: checked
+- Toggle_Label_2: כווץ שעות ריקות
+- Dropdown_Label_3: רזולוציה
+- Dropdown_Default_3: 30
+- Option_List_3 (3 lines):
+  15 | 15 דקות
+  30 | 30 דקות
+  60 | שעה
+- Dropdown_Label_6: יום
+- Dropdown_6: Festival Days
+- Source_Field_6: Slots_Events.Festival Days
+- Leave every other field empty and every other checkbox unticked.
+
+Reply with the two record ids and the exact cell values you wrote.

@@ -1,0 +1,65 @@
+=== EXTENSION_CONFIG POPULATE — PART 1 of 7: Countdown «ספירה לאחור – מסך בית» v0.4.2 ===
+Paste this part on its own into Omni (Airtable AI) on PROD. Parts can be pasted in any order; each part is self-contained.
+
+Work ONLY in the table Extension_Config of this base. Do not create, rename, delete or change any table, field, view, automation, interface, or any record in any other table. Never delete a record. Never create a field: if a field named below does not exist, skip it and list it in your reply.
+
+UPSERT RULES (follow exactly):
+1. Find the record whose Extension equals the value below AND whose Variant equals the value below (compare trimmed; "Variant: (empty)" means the Variant cell is empty).
+2. If no such record exists: create ONE record with exactly the cells listed below. Every other cell stays empty and every other checkbox stays unticked.
+3. If exactly one such record exists: for each cell listed below, write it ONLY if that cell is empty right now. If it already has any value, even a different one, leave it exactly as it is and list it in your reply (field + current value). Never clear a cell.
+4. If more than one record matches, change nothing for that Extension + Variant and reply with their record ids.
+5. Checkboxes on an existing record: tick Toggle_N only if it is unticked now AND that record's Toggle_Label_N was empty before you started (a filled label means someone already set that toggle). Never untick any checkbox. "unticked" below means: leave it unticked.
+6. Never touch these fields: Owner, Use_Defaults_Only (on existing records), Attachment_1-3, Slot_Map, Code_Version, Last_Synced, Sync_Note.
+
+HOW TO WRITE THE VALUES:
+- Each line is "Field: value". Everything after the first ": " is the exact cell value. Copy it character for character, including Hebrew, emoji, arrows, symbols, braces like {n}, «», trailing "…" and spaces around "|". Do not translate, fix spelling or reorder.
+- Table.Field values (e.g. Slots_Events.Status) are plain text: type them as written, do not turn them into links.
+- Multi-line values (Option_List_N, Notes): one line in the cell per line shown, without the leading spaces, in the same order. A line starting with # is a comment and is part of the value.
+- Filter_Operator_N is a single select: choose the existing option with exactly that text. Never add an option.
+- Date_N fields use the Asia/Jerusalem time zone; enter the Israel time given and check the cell shows it.
+- Duration_N is h:mm. Number_N is a plain number.
+
+--- RECORD: Countdown «ספירה לאחור – מסך בית» v0.4.2 ---
+- Extension: countdown-homescreen
+- Variant: (empty)
+- Display_Name: ספירה לאחור – מסך בית
+- Block_ID: <block-id-redacted>
+- Title: יאללה היידה!
+- Content_Text_1: כרטיסים שנמכרו
+- Content_Text_2: הזמנות שנשלחו
+- Content_Text_3: סרטים
+- Content_Text_4: אירועים
+- Content_Text_5: מסגרות תוכן
+- Content_Text_6: ימים
+- Content_Text_7: שעות
+- Content_Text_8: דקות
+- Source_Table_1: Tickets
+- Source_Table_2: Invitations
+- Source_Table_3: Slots_Events
+- Source_Table_4: Films
+- Source_Table_5: Projects
+- Source_Field_3: Slots_Events.Status
+- Source_Field_4: Slots_Events.Start
+- Source_Field_5: Slots_Events.End
+- Source_Field_6: Films.Slots_Events
+- Source_Field_7: Slots_Events.Type
+- Source_Field_8: Slots_Events.Project
+- Option_List_1: משובץ
+- Color_1: #6aabb8
+- Color_2: #faf7f2
+- Color_3: #c9847a
+- Color_4: #c9b36a
+- Color_5: #7eb58a
+- Color_6: #6aabb8
+- Color_7: #8a94c4
+- Date_1: 24/10/2026 20:00 Israel time (UTC 2026-10-24T17:00Z) — the cell must show 24/10/2026 20:00
+- Date_2: 31/10/2026 00:00 Israel time (UTC 2026-10-30T22:00Z) — the cell must show 31/10/2026 00:00
+- Notes: מולא 2026-10-10 מברירות המחדל בקוד של Countdown v0.4.2 (פרומפט Omni populate). תא ריק = ברירת המחדל בקוד.
+(33 cells besides Extension and Variant.)
+
+When done, reply with, for each record above:
+- the record id, and whether you CREATED it or UPDATED an existing one;
+- how many cells you wrote;
+- every listed cell you left alone because it already had a value (field + its current value);
+- every field you could not find or could not write exactly (field + what happened).
+Touch nothing else in the base and do not "fix" anything else.

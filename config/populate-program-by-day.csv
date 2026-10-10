@@ -1,0 +1,27 @@
+﻿Extension,Variant,Display_Name,Block_ID,Title,Heading_2,Heading_3,Heading_4,Table_Heading_1,Table_Heading_2,Table_Heading_3,Helper_Text_1,Helper_Text_4,Helper_Text_5,Helper_Text_6,Helper_Text_7,Helper_Text_8,Content_Text_1,Content_Text_2,Content_Text_3,Content_Text_5,Content_Text_8,Content_Text_9,Content_Text_10,Content_Text_11,Content_Text_12,Tab_Label_1,Tab_Label_2,Button_Text_1,Button_Text_2,Button_Text_5,Button_Text_6,Empty_State_Text_1,Empty_State_Text_2,Empty_State_Text_3,Source_Table_1,Source_Table_2,Source_Table_3,Source_Field_6,Filter_Label_1,Filter_Label_2,Filter_Label_3,Filter_Label_4,Filter_6,Filter_Operator_6,Filter_7,Filter_Operator_7,Filter_Value_7,Filter_9,Filter_Operator_9,Filter_Value_9,Dropdown_Label_3,Dropdown_Default_3,Dropdown_6,Dropdown_Label_6,Option_List_3,Option_List_6,Option_List_7,Color_1,Color_2,Color_3,Date_1,Date_2,Date_3,Number_1,Number_2,Number_3,Number_4,Toggle_1,Toggle_2,Toggle_3,Toggle_Label_1,Toggle_Label_2,Toggle_Label_3,Notes
+program-by-day,,פרוגרמה – לפי יום / טיימליין (שורה משותפת),,,,,,שעה,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,checked,,,כווץ עמודות ריקות,,,שורת ברירת מחדל משותפת לטיימליין (Variant timeline) ולעמוד Omni (Variant by-location). מולא 2026-10-10.
+program-by-day,timeline,טיימליין ימים,<block-id-redacted>,טיימליין,הכנות,פסטיבל,פירוק,שעה,15:00,11:00,חיפוש…,סגור · לחצו לפתיחה,ריק ביום הזה · לחצו לפתיחה,בשדות הלינה יש תאריך בלבד · שעות ברירת מחדל: צ׳ק-אין {in} · צ׳ק-אאוט {out},גררו לשינוי הסדר · חיצים: הזזה,גררו לשינוי רוחב · לחיצה כפולה: איפוס · חיצים: ±20px,חתך רוחב,כל היום,מתוך,נקה הכל ✕,תחומים,טבלאות בחתך:,רשומה חדשה,קשר למשבצת,להתחלה|הזז ימינה|הזז שמאלה|לסוף|סגור עמודה,תצוגה,אפשרויות עמודה,עכשיו,קפיצה ל…,צור,ביטול,אין פריטים שתואמים לסינון,אין אירועים בחתך,אין פריטים בטבלאות שבחרתם לחתך,People,Films,Festival Days,,מיקום,אדם,סרט,סטטוס,Slots_Events.Start,is not empty,Slots_Events.Type,is not,למחיקה|לא מוגדר / לא לשבץ|לא מוגדר|לא לשבץ,Tasks.Status,is not,בוטלה|הועברה לאחר,רזולוציה,360,,,"60 | שעה
+180 | 3 שעות
+360 | 6 שעות
+720 | 12 שעות
+1440 | יממה","Slots_Events | משבצות | blueLight2 |
+Staffing | צוות | tealLight2 |
+Invitations | הזמנות | tealLight1 |
+Itinerary | מסלולים | purpleLight2 |
+Lodging | לינה | purpleLight2 |
+Booking Resources | ציוד | purpleLight1 |
+Tasks | משימות | greenLight1 |
+Social Posts | סושיאל | greenLight2 |
+Petty Cash | קופה קטנה | yellowLight2 |
+Requests | רכש | orangeLight2 |
+transactions | תשלומים | yellowLight1 |
+Notebook | פגישות | grayLight2 |
+Approvals | אישורים | orangeLight1 |","Todo | לביצוע
+לא התחילה | לביצוע
+In progress | בתהליך
+בתהליך | בתהליך
+Done | בוצע ✓
+הושלמה | בוצע ✓",grayLight2,cyanLight2,yellowLight2,2026-10-16 00:00,2026-11-10 00:00,2026-11-01 00:00,0.2,6,30,7,checked,,checked,כווץ עמודות ריקות,כווץ שעות ריקות,חתך רוחב,מולא 2026-10-10 מברירות המחדל בקוד של Timeline v0.2.5 (צבעי SDK לפי PALETTE v0.2.3). תא ריק = ברירת המחדל בקוד.
+program-by-day,by-location,פרוגרמה – לפי יום (עמוד Omni),,פרוגרמה – לפי יום,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Slots_Events.Festival Days,,,,,,,,,,,,,רזולוציה,30,Festival Days,יום,"15 | 15 דקות
+30 | 30 דקות
+60 | שעה",,,,,,,,,,,,,checked,checked,,כווץ עמודות ריקות,כווץ שעות ריקות,,עמוד Omni «פרוגרמה - לפי יום». נקרא רק אחרי שמדביקים ב-Omni את maps/program-by-day-OMNI-PROMPT.txt. מולא 2026-10-10.

@@ -1,0 +1,115 @@
+Create ONE new table in this base. Do not change, rename, delete or add anything in any other table, field, view, automation or interface.
+
+Table name: Extension_Config
+Table description: הגדרות לתוספים מותאמים (Custom extensions). שורה אחת לכל תוסף/מסך. התוסף קורא את השורה שלו לפי Extension; תא ריק = ברירת המחדל שבקוד. שינוי תא מתעדכן במסך מיד. הקוד ממלא רק תאים ריקים ולעולם לא דורס ערך קיים.
+
+Rules:
+- Field names exactly as written below: English letters, digits and underscores only. No Hebrew, no spaces, no emoji in field names.
+- Every Hebrew text below goes into the field DESCRIPTION, not the name.
+- Checkbox fields must be real Airtable Checkbox fields (a checkbox you can tick). Do NOT make them text, "true/false", Yes/No single select, or formulas.
+- Long text fields: plain long text, rich text formatting OFF.
+- Do not add any extra fields, link fields, lookups or formulas. Do not add a "Created" or "Status" field.
+- Create the fields in exactly this order.
+
+Fields (name | type | description):
+- Extension | Single line text (PRIMARY field — rename the primary field to this) | מפתח קבוע באנגלית לכל תוסף/מסך, למשל countdown-homescreen. הקוד מחפש את הרשומה לפי הערך הזה — לא לשנות אחרי שנקבע
+- Display_Name | Single line text | שם התוסף/המסך בעברית, לתצוגה בלבד
+- Block_ID | Single line text | מזהה התוסף ב-Airtable (blk…). הקוד ממלא אוטומטית אם ריק
+- Use_Defaults_Only | Checkbox (real checkbox, green check icon) | מסומן = התוסף מתעלם מהשורה הזו ומשתמש בברירות המחדל שבקוד (מתג חירום)
+- Title | Single line text | כותרת ראשית של המסך
+- Heading_1 | Single line text | כותרת משנה 1 — המשמעות לכל תוסף מפורטת בשדה Slot_Map
+- Heading_2 | Single line text | כותרת משנה 2 — המשמעות לכל תוסף מפורטת בשדה Slot_Map
+- Heading_3 | Single line text | כותרת משנה 3 — המשמעות לכל תוסף מפורטת בשדה Slot_Map
+- Heading_4 | Single line text | כותרת משנה 4 — המשמעות לכל תוסף מפורטת בשדה Slot_Map
+- Heading_5 | Single line text | כותרת משנה 5 — המשמעות לכל תוסף מפורטת בשדה Slot_Map
+- Table_Heading_1 | Single line text | כותרת עמודה/טבלה 1 — ראו Slot_Map
+- Table_Heading_2 | Single line text | כותרת עמודה/טבלה 2 — ראו Slot_Map
+- Table_Heading_3 | Single line text | כותרת עמודה/טבלה 3 — ראו Slot_Map
+- Table_Heading_4 | Single line text | כותרת עמודה/טבלה 4 — ראו Slot_Map
+- Table_Heading_5 | Single line text | כותרת עמודה/טבלה 5 — ראו Slot_Map
+- Table_Heading_6 | Single line text | כותרת עמודה/טבלה 6 — ראו Slot_Map
+- Table_Heading_7 | Single line text | כותרת עמודה/טבלה 7 — ראו Slot_Map
+- Table_Heading_8 | Single line text | כותרת עמודה/טבלה 8 — ראו Slot_Map
+- Table_Heading_9 | Single line text | כותרת עמודה/טבלה 9 — ראו Slot_Map
+- Table_Heading_10 | Single line text | כותרת עמודה/טבלה 10 — ראו Slot_Map
+- Helper_Text_1 | Long text (plain, rich text OFF) | טקסט עזרה 1 (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Helper_Text_2 | Long text (plain, rich text OFF) | טקסט עזרה 2 (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Helper_Text_3 | Long text (plain, rich text OFF) | טקסט עזרה 3 (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Helper_Text_4 | Long text (plain, rich text OFF) | טקסט עזרה 4 (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Helper_Text_5 | Long text (plain, rich text OFF) | טקסט עזרה 5 (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Helper_Text_6 | Long text (plain, rich text OFF) | טקסט עזרה 6 (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Helper_Text_7 | Long text (plain, rich text OFF) | טקסט עזרה 7 (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Helper_Text_8 | Long text (plain, rich text OFF) | טקסט עזרה 8 (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Helper_Text_9 | Long text (plain, rich text OFF) | טקסט עזרה 9 (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Helper_Text_10 | Long text (plain, rich text OFF) | טקסט עזרה 10 (הסבר קטן, טולטיפ, placeholder) — ראו Slot_Map
+- Content_Text_1 | Long text (plain, rich text OFF) | טקסט תוכן 1 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_2 | Long text (plain, rich text OFF) | טקסט תוכן 2 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_3 | Long text (plain, rich text OFF) | טקסט תוכן 3 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_4 | Long text (plain, rich text OFF) | טקסט תוכן 4 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_5 | Long text (plain, rich text OFF) | טקסט תוכן 5 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_6 | Long text (plain, rich text OFF) | טקסט תוכן 6 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_7 | Long text (plain, rich text OFF) | טקסט תוכן 7 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_8 | Long text (plain, rich text OFF) | טקסט תוכן 8 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_9 | Long text (plain, rich text OFF) | טקסט תוכן 9 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_10 | Long text (plain, rich text OFF) | טקסט תוכן 10 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_11 | Long text (plain, rich text OFF) | טקסט תוכן 11 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_12 | Long text (plain, rich text OFF) | טקסט תוכן 12 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_13 | Long text (plain, rich text OFF) | טקסט תוכן 13 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_14 | Long text (plain, rich text OFF) | טקסט תוכן 14 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Content_Text_15 | Long text (plain, rich text OFF) | טקסט תוכן 15 (תוויות, הודעות, פסקאות) — ראו Slot_Map
+- Source_Table_1 | Single line text | שם טבלה מדויק באנגלית (או tbl…) שהאלמנט 1 מתחבר אליה. הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Table_2 | Single line text | שם טבלה מדויק באנגלית (או tbl…) שהאלמנט 2 מתחבר אליה. הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Table_3 | Single line text | שם טבלה מדויק באנגלית (או tbl…) שהאלמנט 3 מתחבר אליה. הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Table_4 | Single line text | שם טבלה מדויק באנגלית (או tbl…) שהאלמנט 4 מתחבר אליה. הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Table_5 | Single line text | שם טבלה מדויק באנגלית (או tbl…) שהאלמנט 5 מתחבר אליה. הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Table_6 | Single line text | שם טבלה מדויק באנגלית (או tbl…) שהאלמנט 6 מתחבר אליה. הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Table_7 | Single line text | שם טבלה מדויק באנגלית (או tbl…) שהאלמנט 7 מתחבר אליה. הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Table_8 | Single line text | שם טבלה מדויק באנגלית (או tbl…) שהאלמנט 8 מתחבר אליה. הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Table_9 | Single line text | שם טבלה מדויק באנגלית (או tbl…) שהאלמנט 9 מתחבר אליה. הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Table_10 | Single line text | שם טבלה מדויק באנגלית (או tbl…) שהאלמנט 10 מתחבר אליה. הטבלה חייבת להיות מאופשרת גם בחלונית הימנית של האלמנט
+- Source_Field_1 | Single line text | שם שדה מדויק באנגלית (או fld…) בתוך Source_Table_1
+- Source_Field_2 | Single line text | שם שדה מדויק באנגלית (או fld…) בתוך Source_Table_2
+- Source_Field_3 | Single line text | שם שדה מדויק באנגלית (או fld…) בתוך Source_Table_3
+- Source_Field_4 | Single line text | שם שדה מדויק באנגלית (או fld…) בתוך Source_Table_4
+- Source_Field_5 | Single line text | שם שדה מדויק באנגלית (או fld…) בתוך Source_Table_5
+- Source_Field_6 | Single line text | שם שדה מדויק באנגלית (או fld…) בתוך Source_Table_6
+- Source_Field_7 | Single line text | שם שדה מדויק באנגלית (או fld…) בתוך Source_Table_7
+- Source_Field_8 | Single line text | שם שדה מדויק באנגלית (או fld…) בתוך Source_Table_8
+- Source_Field_9 | Single line text | שם שדה מדויק באנגלית (או fld…) בתוך Source_Table_9
+- Source_Field_10 | Single line text | שם שדה מדויק באנגלית (או fld…) בתוך Source_Table_10
+- Date_1 | Date with time — 24-hour format, time zone Asia/Jerusalem, 'Use the same time zone for all collaborators' ON | תאריך ושעה 1 (למשל מועד יעד לספירה לאחור) — שעון ישראל
+- Date_2 | Date with time — 24-hour format, time zone Asia/Jerusalem, 'Use the same time zone for all collaborators' ON | תאריך ושעה 2 (למשל מועד יעד לספירה לאחור) — שעון ישראל
+- Date_3 | Date with time — 24-hour format, time zone Asia/Jerusalem, 'Use the same time zone for all collaborators' ON | תאריך ושעה 3 (למשל מועד יעד לספירה לאחור) — שעון ישראל
+- Number_1 | Number, decimal, 2 decimal places, negatives allowed | מספר 1 (סף, מגבלה, כמות) — ראו Slot_Map
+- Number_2 | Number, decimal, 2 decimal places, negatives allowed | מספר 2 (סף, מגבלה, כמות) — ראו Slot_Map
+- Number_3 | Number, decimal, 2 decimal places, negatives allowed | מספר 3 (סף, מגבלה, כמות) — ראו Slot_Map
+- Number_4 | Number, decimal, 2 decimal places, negatives allowed | מספר 4 (סף, מגבלה, כמות) — ראו Slot_Map
+- Number_5 | Number, decimal, 2 decimal places, negatives allowed | מספר 5 (סף, מגבלה, כמות) — ראו Slot_Map
+- Toggle_1 | Checkbox (real checkbox, green check icon) | מתג 1 (מסומן = פעיל) — ראו Slot_Map
+- Toggle_2 | Checkbox (real checkbox, green check icon) | מתג 2 (מסומן = פעיל) — ראו Slot_Map
+- Toggle_3 | Checkbox (real checkbox, green check icon) | מתג 3 (מסומן = פעיל) — ראו Slot_Map
+- Toggle_4 | Checkbox (real checkbox, green check icon) | מתג 4 (מסומן = פעיל) — ראו Slot_Map
+- Toggle_5 | Checkbox (real checkbox, green check icon) | מתג 5 (מסומן = פעיל) — ראו Slot_Map
+- Slot_Map | Long text (plain, rich text OFF) | נכתב אוטומטית ע״י הקוד: מה כל משבצת אומרת בתוסף הזה + ברירת המחדל שלה. לא לערוך ידנית
+- Code_Version | Single line text | גרסת הקוד האחרונה שסנכרנה את השורה (נכתב ע״י הקוד)
+- Last_Synced | Date with time — 24-hour format, time zone Asia/Jerusalem | מועד הסנכרון האחרון של הקוד (נכתב ע״י הקוד)
+- Sync_Note | Single line text | הודעת סנכרון מהקוד: ✓ או רשימת שדות שלא מאופשרים באלמנט (נכתב ע״י הקוד)
+- Notes | Long text (plain, rich text OFF) | הערות חופשיות לעורכים
+
+Then create exactly ONE record:
+- Extension: countdown-homescreen
+- Display_Name: ספירה לאחור – מסך בית
+- Block_ID: <block-id-redacted>
+- Use_Defaults_Only: unchecked
+- Title: יאללה היידה!
+- Date_1 (fallback only, used if no משובץ slots are found): 24 October 2026, 20:00 Israel time (Asia/Jerusalem). In UTC that is 2026-10-24T17:00:00.000Z — check the cell shows 24/10/2026 20:00.
+- Source_Table_1: Tickets
+- Source_Table_2: Invitations
+- Source_Table_3: Slots_Events
+- Source_Field_3: Status
+- Content_Text_3: משובץ
+- Content_Text_1: כרטיסים שנמכרו
+- Content_Text_2: הזמנות שנשלחו
+- Leave every other field of this record EMPTY (the extension fills Slot_Map, Code_Version, Last_Synced and Sync_Note itself).
+
+When done, reply with: the table name, the number of fields created (should be 83), and a list of any field you could not create exactly as specified. Do not "fix" anything else in the base.

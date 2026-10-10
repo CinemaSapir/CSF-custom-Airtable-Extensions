@@ -1,0 +1,90 @@
+=== EXTENSION_CONFIG POPULATE — PART 5 of 7: ספר טלפונים – אנשים ותפקידים v0.3.0 ===
+Paste this part on its own into Omni (Airtable AI) on PROD. Parts can be pasted in any order; each part is self-contained.
+
+Work ONLY in the table Extension_Config of this base. Do not create, rename, delete or change any table, field, view, automation, interface, or any record in any other table. Never delete a record. Never create a field: if a field named below does not exist, skip it and list it in your reply.
+
+UPSERT RULES (follow exactly):
+1. Find the record whose Extension equals the value below AND whose Variant equals the value below (compare trimmed; "Variant: (empty)" means the Variant cell is empty).
+2. If no such record exists: create ONE record with exactly the cells listed below. Every other cell stays empty and every other checkbox stays unticked.
+3. If exactly one such record exists: for each cell listed below, write it ONLY if that cell is empty right now. If it already has any value, even a different one, leave it exactly as it is and list it in your reply (field + current value). Never clear a cell.
+4. If more than one record matches, change nothing for that Extension + Variant and reply with their record ids.
+5. Checkboxes on an existing record: tick Toggle_N only if it is unticked now AND that record's Toggle_Label_N was empty before you started (a filled label means someone already set that toggle). Never untick any checkbox. "unticked" below means: leave it unticked.
+6. Never touch these fields: Owner, Use_Defaults_Only (on existing records), Attachment_1-3, Slot_Map, Code_Version, Last_Synced, Sync_Note.
+
+HOW TO WRITE THE VALUES:
+- Each line is "Field: value". Everything after the first ": " is the exact cell value. Copy it character for character, including Hebrew, emoji, arrows, symbols, braces like {n}, «», trailing "…" and spaces around "|". Do not translate, fix spelling or reorder.
+- Table.Field values (e.g. Slots_Events.Status) are plain text: type them as written, do not turn them into links.
+- Multi-line values (Option_List_N, Notes): one line in the cell per line shown, without the leading spaces, in the same order. A line starting with # is a comment and is part of the value.
+- Filter_Operator_N is a single select: choose the existing option with exactly that text. Never add an option.
+- Date_N fields use the Asia/Jerusalem time zone; enter the Israel time given and check the cell shows it.
+- Duration_N is h:mm. Number_N is a plain number.
+
+--- RECORD: ספר טלפונים – אנשים ותפקידים v0.3.0 ---
+- Extension: people-roles
+- Variant: (empty)
+- Display_Name: ספר טלפונים – אנשים ותפקידים
+- Block_ID: <block-id-redacted>
+- Title: חיפוש/הוספת/עריכת שם ותפקיד
+- Heading_1: ספר טלפונים
+- Heading_2: שינויים אחרונים
+- Heading_3: אנשים ותפקידים
+- Table_Heading_1: שם
+- Table_Heading_2: תפקיד
+- Table_Heading_3: טלפון אישי
+- Table_Heading_4: אימייל אישי
+- Table_Heading_5: טלפון תפקיד
+- Table_Heading_6: אימייל תפקיד
+- Table_Heading_7: גוף שותף
+- Helper_Text_1: הקלידו שם (או טלפון) ו/או תפקיד כדי לחפש בספר הטלפונים למטה. לא מצאתם? בחרו ״צור״ ברשימה כדי להוסיף חדש.
+- Helper_Text_2: בחר שם / צור שם חדש
+- Helper_Text_3: בחר תפקיד / צור תפקיד חדש
+- Helper_Text_4: החלפה לאדם הזה בלבד…
+- Helper_Text_5: מבטל רק את הקישור בין השם לתפקיד. האדם והתפקיד עצמם לא נמחקים.
+- Helper_Text_6: חל רק על {name} בתפקיד הזה — לא על התפקיד ולא על אחרים.
+- Content_Text_1: שם
+- Content_Text_2: תפקיד
+- Content_Text_3: טלפון אישי
+- Content_Text_4: אימייל אישי
+- Content_Text_5: טלפון תפקיד
+- Content_Text_6: אימייל תפקיד
+- Content_Text_7: גוף שותף
+- Content_Text_8: פנוי
+- Content_Text_9: ללא גוף שותף
+- Content_Text_10: מתוכנן
+- Content_Text_11: ✓ שובץ לתפקיד
+- Content_Text_12: עריכת שם
+- Content_Text_13: עריכת שם התפקיד
+- Content_Text_14: ✓ כבר משובץ לתפקיד
+- Tab_Label_1: הכל
+- Tab_Label_2: שיבוצים
+- Tab_Label_3: פנויים
+- Tab_Label_4: הרחב
+- Tab_Label_5: סגור
+- Button_Text_1: חזרה לגוף השותף של התפקיד
+- Button_Text_2: ניקוי
+- Button_Text_3: הוסף עוד תפקיד לשם הזה
+- Button_Text_4: שבץ
+- Button_Text_5: ביטול שיבוץ
+- Button_Text_6: נקה סינון ומיון
+- Button_Text_7: הסר שורה
+- Button_Text_8: פתח רשומה
+- Button_Text_9: החלף
+- Button_Text_10: טען לטופס
+- Empty_State_Text_1: אין שורות לסינון הזה
+- Empty_State_Text_2: אין תפקידים פנויים
+- Empty_State_Text_3: לשם הזה עדיין אין תפקיד — בחרו או צרו תפקיד למעלה
+- Error_Text_1: הטבלאות הבאות לא זמינות לתוסף: {tables}. יש לבחור אותן בפאנל המאפיינים של האלמנט.
+- Error_Text_2: יש להפעיל ״יצירת רשומות״ לטבלה בפאנל הנתונים של הרכיב (עורך הממשק).
+- Source_Table_1: People
+- Source_Table_2: Roles
+- Source_Table_3: Assignments
+- Duration_1: 0:10 (h:mm = 10 minutes)
+- Notes: מולא 2026-10-10 מברירות המחדל בקוד של people-roles v0.3.0 (cfg.ts). תא ריק = ברירת המחדל בקוד. החלונית הימנית גוברת על Source_Table.
+(58 cells besides Extension and Variant.)
+
+When done, reply with, for each record above:
+- the record id, and whether you CREATED it or UPDATED an existing one;
+- how many cells you wrote;
+- every listed cell you left alone because it already had a value (field + its current value);
+- every field you could not find or could not write exactly (field + what happened).
+Touch nothing else in the base and do not "fix" anything else.
