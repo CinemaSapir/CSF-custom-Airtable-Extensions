@@ -7,8 +7,12 @@
 // v3 (2026-10-10 12:57): the field is Attachment_Mapping_Image (loose fallback: the old name Mapping_Image); toggle label
 // «show mapping · Extension_Config.Attachment_Mapping_Image». + «עריכה ישירה · Extension_Config» (ConfigEdit.tsx): click-to-edit
 // text slots and Option_List editors that write ONLY the matched Extension_Config row's cell (Variant row, else default row).
+// v4 (2026-10-10 13:22): even looser Extension / Variant keys (trim; every Unicode format / bidi / zero-width char, soft
+// hyphen, ALM; any whitespace incl. NBSP; any dash, _ and . ignored; NFKC; case) → «countdown homescreen» =
+// «Countdown-Homescreen» = «countdown_homescreen». No row matched → the panel lists the Extension and Variant values it
+// actually sees (≤ 10 each, invisible chars made visible) and whether the Extension / Variant fields are visible.
 
-export const STATUS_PANEL_VERSION = 'status-panel v3';
+export const STATUS_PANEL_VERSION = 'status-panel v4';
 export const STATUS_TOGGLE_KEY = 'showStatusPanel';
 export const STATUS_TOGGLE_LABEL = 'show מצב חיבור · Extension_Config';
 
@@ -21,15 +25,33 @@ export function isStatusOn(v: unknown): boolean {
     return v === true;
 }
 
-/** Loose key: NFC, no bidi / zero-width marks, no nikud, lower case, no spaces / _ / - / . */
+/** Loose key: NFKC, trimmed; no format / bidi / zero-width chars (\p{Cf}), no nikud / combining marks, lower case,
+ *  no whitespace (incl. NBSP), dashes of any kind, _ or . — «countdown homescreen» = «Countdown-Homescreen» = «countdown_homescreen». */
 export function looseKey(s: unknown): string {
     return String(s ?? '')
-        .normalize('NFC')
-        .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF\u061C\u00A0]/g, '')
-        .replace(/[\u0591-\u05C7]/g, '')
+        .normalize('NFKC')
+        .replace(/\p{Cf}|\u034F|\u180E|\u115F|\u1160|\u3164|\uFFA0/gu, '')
+        .replace(/[\u0591-\u05C7]|\p{Mn}/gu, '')
+        .trim()
         .toLowerCase()
-        .replace(/[\s_\-.\u05BE\u2010-\u2015]+/g, '');
+        .replace(/[\s\p{Z}\p{Pd}_.\u05BE\u2010-\u2015\u2212]+/gu, '');
 }
+/** Field by exact name, then loose name (e.g. «Extension », «extension»). */
+export function looseField<T extends {name: string}>(fields: readonly T[], name: string): T | null {
+    return fields.find(f => f.name === name) ?? fields.find(f => looseKey(f.name) === looseKey(name)) ?? null;
+}
+/** Shows what is really in a cell: invisible / format chars → ⟨U+200F⟩, leading/trailing spaces → ␠. */
+export function visibleChars(s: string): string {
+    const chars = [...s];
+    let lead = 0;
+    while (lead < chars.length && (chars[lead] === ' ' || chars[lead] === '\t')) lead++;
+    let end = chars.length;
+    while (end > lead && (chars[end - 1] === ' ' || chars[end - 1] === '\t')) end--;
+    const code = (ch: string) => `⟨U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}⟩`;
+    const mid = chars.slice(lead, end).map(ch => (/\p{Cf}|\u00A0|\u034F|\u180E/u.test(ch) ? code(ch) : ch));
+    return '␠'.repeat(lead) + mid.join('') + '␠'.repeat(chars.length - end);
+}
+export const SEEN_VALUES_MAX = 10;
 const DEFAULT_VARIANT_WORDS = ['', 'default', 'ברירת מחדל', 'ברירתמחדל', '-', '—'].map(looseKey);
 /** "", "default", «ברירת מחדל», "-" → "" (= the default row). */
 export function variantKey(v: unknown): string {
@@ -40,8 +62,10 @@ export function variantKey(v: unknown): string {
 export type ConfigRow = {id: string; extension: string; variant: string};
 export type RowSummary = {
     count: number;
-    /** distinct Extension cell values in the table (for "row not matched" help) */
+    /** distinct Extension cell values in the table (for "row not matched" help; all — the panel shows ≤ SEEN_VALUES_MAX) */
     extensionValues: string[];
+    /** distinct Variant cell values in the table ('' = empty) */
+    variantValues: string[];
     /** rows whose Extension loosely equals the slug, any Variant */
     sameExtension: ConfigRow[];
     /** loose Extension + loose Variant match (first) */
@@ -51,10 +75,12 @@ export function rowSummary(rows: readonly ConfigRow[] | null, slug: string, vari
     if (!rows) return null;
     const s = looseKey(slug);
     const v = variantKey(variant);
+    // (looseKey trims and drops every invisible char, so «countdown-homescreen\u200F » still matches)
     const same = rows.filter(r => looseKey(r.extension) === s);
     return {
         count: rows.length,
-        extensionValues: [...new Set(rows.map(r => r.extension.trim()).filter(Boolean))],
+        extensionValues: [...new Set(rows.map(r => r.extension).filter(v => v.trim()))],
+        variantValues: [...new Set(rows.map(r => r.variant))],
         sameExtension: same,
         match: same.find(r => variantKey(r.variant) === v) ?? null,
     };

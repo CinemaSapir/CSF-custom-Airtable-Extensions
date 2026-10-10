@@ -42,7 +42,7 @@ import {MappingPanel} from './MappingPanel';
 import {ConfigEditor} from './ConfigEdit';
 import {EDIT_TOGGLE_KEY, MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, editToggleProperty, isEditOn, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusSource} from './statusCore';
 
-const VERSION = '0.5.3';
+const VERSION = '0.5.4';
 
 // ---------------------------------------------------------------------------
 // IDs (verified 2026-09-25 against DEMO appiN9MrP73g6R9hi, same as people-roles-ext)

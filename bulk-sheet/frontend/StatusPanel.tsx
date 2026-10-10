@@ -8,11 +8,14 @@ import {
     GITHUB_HINT,
     STATUS_PANEL_VERSION,
     compactNames,
+    SEEN_VALUES_MAX,
+    looseField,
     looseKey,
     missingFields,
     overallOk,
     rowSummary,
     variantKey,
+    visibleChars,
     yn,
     type ConfigRow,
     type MappingResult,
@@ -54,8 +57,8 @@ export function StatusPanel(p: StatusPanelProps) {
 
 function WithRows(p: StatusPanelProps & {table: Table}) {
     const recs = useRecords(p.table);
-    const ext = p.table.fields.find(f => looseKey(f.name) === 'extension') ?? null;
-    const vf = p.table.fields.find(f => looseKey(f.name) === 'variant') ?? null;
+    const ext = looseField(p.table.fields, 'Extension');
+    const vf = looseField(p.table.fields, 'Variant');
     const str = (r: AtRecord, f: typeof ext) => {
         try {
             return f ? r.getCellValueAsString(f) : '';
@@ -65,7 +68,7 @@ function WithRows(p: StatusPanelProps & {table: Table}) {
     };
     const rows: ConfigRow[] | null = recs ? recs.map(r => ({id: r.id, extension: str(r, ext), variant: str(r, vf)})) : null;
     const mapping = readMapping(p.table, recs ?? null, p.record, p.variantRecord, p.slug);
-    return <Body {...p} rows={rows} hasExtField={!!ext} mapping={mapping} />;
+    return <Body {...p} rows={rows} hasExtField={!!ext} hasVariantField={!!vf} extFieldName={ext?.name} mapping={mapping} />;
 }
 
 type EditSchema = Record<string, {id: string; name: string}>;
@@ -80,7 +83,37 @@ function editSchema(base: Base): EditSchema | null {
     }
 }
 
-function Body(p: StatusPanelProps & {rows: ConfigRow[] | null; hasExtField?: boolean; mapping: MappingResult | null}) {
+const seen = (vals: readonly string[], empty: string) => {
+    const shown = vals.slice(0, SEEN_VALUES_MAX).map(v => (v.trim() ? `«${visibleChars(v)}»` : empty));
+    return shown.join(' ') + (vals.length > SEEN_VALUES_MAX ? ` +${vals.length - SEEN_VALUES_MAX}` : '') || '—';
+};
+/** No row matched: what the panel actually sees (≤ 10 Extension / Variant values, invisible chars shown) + field visibility. */
+function NoRow(p: {sum: RowSummary; slug: string; hasExt?: boolean; hasVar?: boolean; extName?: string}) {
+    const {sum} = p;
+    return (
+        <div className="csfst-norow" data-slot="status-norow">
+            <div>
+                שדה Extension: <b className={p.hasExt ? 'csfst-ok' : 'csfst-bad'}>{p.hasExt ? `✓ גלוי (${p.extName})` : '✗ לא מופעל לאלמנט / לא קיים'}</b> · שדה Variant:{' '}
+                <b className={p.hasVar ? 'csfst-ok' : 'csfst-bad'}>{p.hasVar ? '✓ גלוי' : '✗ לא מופעל לאלמנט (כל השורות ייחשבו Variant ריק)'}</b>
+            </div>
+            <div>
+                ערכי Extension שנראים ({sum.extensionValues.length}): <code className="csfst-wrap">{seen(sum.extensionValues, '(ריק)')}</code>
+            </div>
+            <div>
+                ערכי Variant שנראים ({sum.variantValues.length}): <code className="csfst-wrap">{seen(sum.variantValues, '(ריק)')}</code>
+            </div>
+            {sum.sameExtension.length > 0 && (
+                <div>
+                    Variant קיימים ל-«{p.slug}»: <code>{sum.sameExtension.map(r => `«${visibleChars(r.variant) || '(ריק)'}»`).join(' ')}</code>
+                </div>
+            )}
+            {sum.match && <div className="csfst-bad">הפאנל מצא התאמה רופפת (שורה {sum.match.id}) אבל הקוד לא קרא אותה — לרענן את הדף; אם נשאר, לדווח</div>}
+            <div className="csfst-dim">ההתאמה רופפת: רווחים, אותיות גדולות/קטנות, - _ . ותווים בלתי נראים לא משנים («countdown homescreen» = «Countdown-Homescreen»).</div>
+        </div>
+    );
+}
+
+function Body(p: StatusPanelProps & {rows: ConfigRow[] | null; hasExtField?: boolean; hasVariantField?: boolean; extFieldName?: string; mapping: MappingResult | null}) {
     const [open, setOpen] = useState(true);
     const t = p.configTable;
     const visible = t ? t.fields.map(f => f.name) : [];
@@ -121,18 +154,7 @@ function Body(p: StatusPanelProps & {rows: ConfigRow[] | null; hasExtField?: boo
                             <code>Variant = {usedRow ? usedRow.variant || '(ריק)' : variantShown}</code>
                             {p.variantRecord ? ' (+ שורת Variant)' : ''} · סטטוס <code>{p.status}</code> · שורות בטבלה: {sum ? sum.count : '…'}
                             {p.hasExtField === false && <span className="csfst-bad"> · השדה Extension לא מופעל לאלמנט</span>}
-                            {!p.record && sum && (
-                                <>
-                                    {' '}
-                                    · ערכי Extension בטבלה: <code>{sum.extensionValues.map(v => `«${v}»`).join(' ') || '—'}</code>
-                                    {sum.sameExtension.length > 0 && (
-                                        <>
-                                            {' '}
-                                            · Variant קיימים ל-{p.slug}: <code>{sum.sameExtension.map(r => `«${r.variant || '(ריק)'}»`).join(' ')}</code>
-                                        </>
-                                    )}
-                                </>
-                            )}
+                            {!p.record && sum && <NoRow sum={sum} slug={p.slug} hasExt={p.hasExtField} hasVar={p.hasVariantField} extName={p.extFieldName} />}
                         </div>
                     )}
                     {t && (
@@ -268,6 +290,8 @@ const CSS = `
 .csfst { direction:rtl; text-align:right; margin:10px auto 0; max-width:1100px; background:#fff; color:#2f2f2f;
   border:1px solid #e3ddd2; border-radius:10px; font:12.5px/1.55 "Segoe UI", Heebo, Rubik, Arial, sans-serif; box-sizing:border-box; }
 .csfst * { box-sizing:border-box; }
+.csfst-norow { margin:4px 0 2px; padding:6px 8px; background:#fbf6ec; border:1px dashed #e0c9a0; border-radius:8px; }
+.csfst-dim { color:#7a7368; font-size:11.5px; }
 .csfst-h { display:block; width:100%; text-align:right; font:inherit; font-weight:700; color:inherit; background:#f6f3ee; border:0;
   border-radius:10px 10px 0 0; padding:6px 12px; cursor:pointer; }
 .csfst-b { padding:8px 12px 10px; }

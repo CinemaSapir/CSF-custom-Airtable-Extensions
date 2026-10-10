@@ -1,5 +1,9 @@
 # Bulk sheet «קופי פייסט - הזנה מרובה» — changelog (box copy)
 
+## v0.5.4 — 2026-10-10
+- Shared status-panel v4: when no Extension_Config row matches, the «מצב חיבור» panel lists the Extension / Variant values it actually sees (up to 10, invisible characters shown) and whether the Extension and Variant fields are visible to the element.
+- Hook v3.4: Extension / Variant matched very loosely (trim, invisible + bidi characters stripped, case, spaces / dashes / underscores ignored).
+
 ## v0.5.3 — 2026-10-10
 - Mapping field renamed to Attachment_Mapping_Image (old Mapping_Image still read as a loose fallback); toggle «show mapping · Extension_Config.Attachment_Mapping_Image». Hook v3.3.
 - Right-pane «עריכה ישירה · Extension_Config» (default OFF): shared ConfigEditor — click-to-edit on-screen texts, a list of every text slot and an Option_List editor. Writes only one cell of the matched Extension_Config row (Variant row, else default row; no row → confirm), checkPermissionsForUpdateRecord first, 6 s undo.

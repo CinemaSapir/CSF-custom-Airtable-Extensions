@@ -1,4 +1,5 @@
 /**
+ * v3.4 (lists-ui-v0.6.4, 2026-10-10 13:22): Extension / Variant fields and values matched very loosely (= shared hook v3.4).
  * v3.1 (= csf-countdown v0.4.1 copy): Door 2 is OPT-IN (`writes: true`) and OFF by default → strictly read-only (the owner 23:58);
  *   the provider also finds the table loosely (findConfigTable). + useExtensionConfigOptional(). Otherwise identical to v3.
  *
@@ -307,8 +308,19 @@ export type ExtensionConfig = {
 // ---------------------------------------------------------------------------
 const NIKUD_RE = /[\u0591-\u05C7]/g;
 export function looseName(s: string): string {
-    return (s || '').normalize('NFC').replace(NIKUD_RE, '').toLowerCase().replace(/[\s_\-.]+/g, '');
+    // v3.4: = status-panel v4 looseKey — trim, NFKC, every format/bidi/zero-width char (\p{Cf}), nikud/combining marks,
+    // case, any whitespace / dash / _ / . ignored → «countdown homescreen» = «Countdown-Homescreen» = «countdown_homescreen».
+    return String(s ?? '')
+        .normalize('NFKC')
+        .replace(/\p{Cf}|\u034F|\u180E|\u115F|\u1160|\u3164|\uFFA0/gu, '')
+        .replace(NIKUD_RE, '')
+        .replace(/\p{Mn}/gu, '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s\p{Z}\p{Pd}_.\u05BE\u2010-\u2015\u2212]+/gu, '');
 }
+const DEFAULT_VARIANT_KEYS = new Set(['', 'default', 'ברירתמחדל', 'ברירתהמחדל', 'base', 'main']);
+
 function findLoose<T extends {id: string; name: string}>(items: readonly T[], ref: string): T | null {
     const r = ref.trim();
     if (!r) return null;
@@ -615,14 +627,30 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
     const [syncError, setSyncError] = useState<string | null>(null);
     const busy = useRef(false);
 
-    const rowsFor = (v: string) =>
-        !table || !records || !table.getFieldByNameIfExists(F.extension)
-            ? []
-            : records.filter(
-                  r =>
-                      r.getCellValueAsString(F.extension).trim() === slug &&
-                      (table.getFieldByNameIfExists(F.variant) ? r.getCellValueAsString(F.variant).trim() : '') === v,
-              );
+    // v3.4: Extension / Variant fields AND values matched LOOSELY (exact first); «default» / «ברירת מחדל» / «-» = default row.
+    const slugKey = looseName(slug);
+    const fieldLoose = (name: string) => (table ? (table.getFieldByNameIfExists(name) ?? table.fields.find(f => looseName(f.name) === looseName(name)) ?? null) : null);
+    const extField = fieldLoose(F.extension);
+    const varField = fieldLoose(F.variant);
+    const cellStr = (r: AirtableRecord, f: NonNullable<typeof extField>) => {
+        try {
+            return r.getCellValueAsString(f.name);
+        } catch {
+            return '';
+        }
+    };
+    const variantKey = (r: AirtableRecord) => {
+        if (!varField) return '';
+        const k = looseName(cellStr(r, varField));
+        return DEFAULT_VARIANT_KEYS.has(k) ? '' : k;
+    };
+    const rowsFor = (v: string) => {
+        if (!table || !records || !extField) return [];
+        const vk = DEFAULT_VARIANT_KEYS.has(looseName(v)) ? '' : looseName(v);
+        const hits = records.filter(r => looseName(cellStr(r, extField)) === slugKey && variantKey(r) === vk);
+        const exact = hits.filter(r => cellStr(r, extField).trim() === slug);
+        return [...exact, ...hits.filter(r => !exact.includes(r))];
+    };
     const baseMatches = useMemo(() => rowsFor(''), [table, records, slug]); // eslint-disable-line react-hooks/exhaustive-deps
     const varMatches = useMemo(() => (variant ? rowsFor(variant) : []), [table, records, slug, variant]); // eslint-disable-line react-hooks/exhaustive-deps
     const record = baseMatches[0] ?? null;
