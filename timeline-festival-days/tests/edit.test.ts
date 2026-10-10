@@ -22,7 +22,7 @@ test('drag-create: field plan per table (UTC ISO across DST, dates, festival-day
     if ('fields' in p) assert.deepEqual(p.fields, {name: 'סדנה', festivalDays: [{id: 'recFD'}], start: '2026-11-02T11:00:00.000Z', end: '2026-11-02T12:30:00.000Z'});
     const pre = planFields('Slots_Events', {s: D('2026-10-21') + 660, e: D('2026-10-21') + 720}, days, 'create'); // UTC+3 before 25.10
     if ('fields' in pre) assert.equal(pre.fields.start, '2026-10-21T08:00:00.000Z');
-    const task = planFields('Tasks', {s: d + 600, e: d + 660}, days, 'create');
+    const task = planFields('Social Posts', {s: d + 600, e: d + 660}, days, 'create'); // v0.2.11: Tasks removed
     if ('fields' in task) assert.deepEqual(task.fields, {date: '2026-11-02'});
     const lodge = planFields('Lodging', {s: d + 900, e: d + 1000}, days, 'create');
     if ('fields' in lodge) assert.deepEqual(lodge.fields, {start: '2026-11-02', end: '2026-11-03'});
@@ -54,11 +54,10 @@ test('move / resize: what each table allows, with the reason', () => {
     const st = canEdit('Staffing', 'move');
     assert.ok(!st.ok && /המשבצת/.test(st.reason));
     assert.equal(canEdit('Staffing', 'create').ok, true);
-    const ap = canEdit('Approvals', 'resize');
-    assert.ok(!ap.ok && /חותמת זמן/.test(ap.reason));
-    assert.equal(canEdit('Approvals', 'move').ok, true);
-    const tk = canEdit('Tasks', 'move');
-    assert.ok(!tk.ok && /תאריך בלבד/.test(tk.reason));
+    // v0.2.11: Approvals / Tasks removed; date-only = Social Posts
+    const sp = canEdit('Social Posts', 'move');
+    assert.ok(!sp.ok && /תאריך בלבד/.test(sp.reason));
+    assert.equal(canEdit('Tasks', 'move').ok, false);
     assert.ok('error' in planFields('Staffing', {s: 0, e: 60}, days, 'move'));
 });
 test('undo toast: 6 s, pauses on hover, resumes', () => {

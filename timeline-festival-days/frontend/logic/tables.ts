@@ -31,15 +31,11 @@ export const TABLE_SPECS: TableSpec[] = [
     {key: 'Itinerary', aliases: ['Itinerary'], time: 'borrow', slots: ['Slots_Events for input', 'Slots_Events'], people: ['People'], date: ['Day'], from: ['Pickup City'], to: ['Drop off City'], festivalDays: ['Festival Days']},
     {key: 'Lodging', aliases: ['Lodging'], time: 'lodging', start: ['Check-in date', 'Check in date'], end: ['Check-out date', 'Check out date'], guest: ['Guest', 'People'], hotel: ['Hotel', 'Location']},
     {key: 'Booking Resources', aliases: ['Booking Resources'], time: 'date', status: ['Status'], festivalDays: ['Festival Days']},
-    {key: 'Tasks', aliases: ['Tasks'], time: 'date', date: ['Start Date'], dateEnd: ['Deadline'], status: ['Status'], people: ['Owner', 'Person (from Role_In_Charge)']},
     {key: 'Social Posts', aliases: ['Social Posts'], time: 'date', date: ['Publish at'], status: ['Status'], festivalDays: ['Festival Days']},
-    {key: 'Petty Cash', aliases: ['Petty Cash'], time: 'date', date: ['Request Date'], amount: ['Cash_paid', 'Amount']},
-    {key: 'Requests', aliases: ['Requests'], time: 'date', date: ['Request Date'], amount: ['Amount']},
-    {key: 'transactions', aliases: ['transactions', 'Transactions'], time: 'date', date: ['Payment Date'], amount: ['Amount'], sub: ['Notes']},
-    {key: 'Notebook', aliases: ['Notebook'], time: 'date', date: ['Meeting Date']},
-    {key: 'Approvals', aliases: ['Approvals'], time: 'stamp', start: ['Approved At'], date: ['Due Date'], amount: ['Amount'], status: ['Status']},
 ];
+/** v0.2.11 (the owner 16:50): removed from the timeline completely. An Option_List_6 cell that still lists one is ignored silently. */
+export const REMOVED_TABLES = ['Tasks', 'Petty Cash', 'Requests', 'transactions', 'Notebook', 'Approvals'];
 export const LOOKUP_TABLES = {festivalDays: ['Festival Days'], people: ['People'], films: ['Films']};
 export const FESTIVAL_DAY_FIELDS = {date: ['Date'], name: ['Name']};
-/** an Approvals «Approved At» stamp is drawn as a 20-minute card */
+/** a «stamp» time (one instant) is drawn as a 20-minute card */
 export const STAMP_MIN = 20;

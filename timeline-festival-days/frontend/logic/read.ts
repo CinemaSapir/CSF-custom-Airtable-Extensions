@@ -131,11 +131,8 @@ export function readItems(input: TableInput[], o: ReadOptions): ReadResult {
                 base.date = dateOnly(r.raw(sp.date)) ?? (sp.dateEnd ? dateOnly(r.raw(sp.dateEnd)) : null) ?? fdDate(r, sp);
                 base.dateEnd = sp.dateEnd ? dateOnly(r.raw(sp.dateEnd)) : null;
                 if (base.date && base.dateEnd && base.dateEnd < base.date) base.dateEnd = null;
-                base.sub = [base.st && sp.key !== 'Tasks' ? base.st : '', sp.amount ? ils(r.raw(sp.amount)) : ''].filter(Boolean).join(' · ');
-                if (sp.key === 'Tasks') base.sub = base.st || '';
-                if (sp.key === 'Tasks') base.flag = 'due';
+                base.sub = [base.st, sp.amount ? ils(r.raw(sp.amount)) : ''].filter(Boolean).join(' · ');
                 if (sp.people) base.people = uniq(names(r.raw(sp.people)));
-                if (sp.key === 'Tasks' && base.people.length) base.sub = [base.sub, `אחראי: ${base.people[0]}`].filter(Boolean).join(' · ');
             } else if (sp.time === 'stamp') {
                 const s = mOfInstant(instant(r.raw(sp.start), r.tz?.(sp.start)));
                 if (s !== null) {

@@ -50,6 +50,12 @@ test('R4 picked field object null but id/name saved → resolved from the visibl
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const Module = require('module');
+// hook v4 imports ./statusCore (pickConfigRows) — compile it the same way
+const STATUS_CORE = (() => {
+    const sc = new Module('statusCore.js');
+    sc._compile(ts.transpileModule(readFileSync(new URL('../frontend/statusCore.ts', import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}}).outputText, 'statusCore.js');
+    return sc.exports;
+})();
 const js = ts.transpileModule(readFileSync(new URL('../frontend/useExtensionConfig.ts', import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020},
 }).outputText;
@@ -60,6 +66,7 @@ const fakeReact = {
 };
 const orig = Module._load;
 Module._load = function (r: string, ...a: unknown[]) {
+    if (r === './statusCore') return STATUS_CORE;
     if (r === 'react') return fakeReact;
     if (r.startsWith('@airtable')) return {useRecords: () => recs};
     return orig.call(this, r, ...a);

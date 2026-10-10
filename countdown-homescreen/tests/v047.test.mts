@@ -9,6 +9,12 @@ import * as S from '../frontend/statusCore.ts';
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const Module = require('module');
+// hook v4 imports ./statusCore (pickConfigRows) — compile it the same way
+const STATUS_CORE = (() => {
+    const sc = new Module('statusCore.js');
+    sc._compile(ts.transpileModule(readFileSync(new URL('../frontend/statusCore.ts', import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}}).outputText, 'statusCore.js');
+    return sc.exports;
+})();
 const src = readFileSync(new URL('../frontend/useExtensionConfig.ts', import.meta.url), 'utf8');
 const js = ts.transpileModule(src, {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}}).outputText;
 
@@ -28,6 +34,7 @@ const fakeReact = {
 };
 const origLoad = Module._load;
 Module._load = function (r: string, ...a: unknown[]) {
+    if (r === './statusCore') return STATUS_CORE;
     if (r === 'react') return fakeReact;
     if (r.startsWith('@airtable')) return {useRecords: () => currentRecords};
     return origLoad.call(this, r, ...a);
@@ -103,7 +110,7 @@ test('hook v3.3: a table not renamed yet (Mapping_Image) still works', () => {
 test('shared module: labels, edit toggle default OFF, identical files', () => {
     assert.equal(S.MAPPING_TOGGLE_LABEL, 'show mapping · Extension_Config.Attachment_Mapping_Image');
     assert.deepEqual(S.editToggleProperty(), {key: 'inlineEditConfig', label: 'עריכה ישירה · Extension_Config', type: 'boolean', defaultValue: false});
-    assert.match(S.STATUS_PANEL_VERSION, /^status-panel v[34]$/);
+    assert.match(S.STATUS_PANEL_VERSION, /^status-panel v[345]$/);
     for (const f of ['statusCore.ts', 'StatusPanel.tsx', 'MappingPanel.tsx', 'ConfigEdit.tsx'])
         assert.equal(readFileSync(new URL(`../frontend/${f}`, import.meta.url), 'utf8'), readFileSync(`/workspace/csf-extension-config/status-panel/${f}`, 'utf8'), f);
 });

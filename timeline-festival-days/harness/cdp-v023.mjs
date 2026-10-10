@@ -108,7 +108,7 @@ try {
     check('«טיימליין» title = grayDark1', title === rgb(SDK.grayDark1), title);
 
     // ---------------- band: the title shows once
-    const lens = await b.js(`[...document.querySelectorAll('.canvas .ev')].filter(e=>e.querySelector('.lens')).map(e=>{const l=e.querySelector('.lens'),own=e.querySelector(':scope > b'),lr=l.getBoundingClientRect(),or=own.getBoundingClientRect();
+    const lens = await b.js(`[...document.querySelectorAll('.canvas .ev')].filter(e=>e.querySelector('.lens')).map(e=>{const l=e.querySelector('.lens'),own=e.querySelector(':scope > .evt > b'),lr=l.getBoundingClientRect(),or=own.getBoundingClientRect();
       const ownVis=getComputedStyle(own).visibility!=='hidden';const names=[...e.querySelectorAll('b')].filter(x=>{const q=x.getBoundingClientRect();return getComputedStyle(x).visibility!=='hidden'&&x.textContent===own.textContent&&q.bottom>lr.top+1&&q.top<lr.bottom-1}).length;return {n:own.textContent,names,head:e.classList.contains('lenshead'),ownVis,overlap:ownVis&&or.bottom>lr.top+1&&or.top<lr.bottom-1}})`);
     const gp = lens.find(x => /גבול פתוח/.test(x.n));
     check('«הקרנה: גבול פתוח» is in the band, lens owns its head and the own title is hidden (title once)', gp && gp.head && !gp.ownVis, gp);
@@ -120,19 +120,19 @@ try {
     }
     // ---------------- strips: 0-count all-day-only columns go to the side strips per day
     const cols = await b.js(`Object.fromEntries([...document.querySelectorAll('.cols > [data-t]')].map(e=>[e.dataset.t,{cz:e.classList.contains('cz'),w:Math.round(e.getBoundingClientRect().width),n:e.querySelector('.vc')?.textContent}]))`);
-    const three = ['Social Posts', 'Tasks', 'Booking Resources'];
-    check('2.11 13:50: סושיאל / משימות / ציוד (0 on screen) are side strips', three.every(t => cols[t].cz && cols[t].w <= 32), three.map(t => cols[t]));
+    const three = ['Social Posts', 'Booking Resources']; // v0.2.11: Tasks removed from the timeline
+    check('2.11 13:50: סושיאל / ציוד (0 on screen) are side strips', three.every(t => cols[t].cz && cols[t].w <= 32), three.map(t => cols[t]));
     check('busy columns get the freed width (משבצות ≥ 200px)', cols.Slots_Events.w >= 200, cols.Slots_Events);
-    const lbl = await b.js(`document.querySelector('.canvas .col[data-t="Tasks"] .czl').textContent`);
+    const lbl = await b.js(`document.querySelector('.canvas .col[data-t="Social Posts"] .czl').textContent`);
     check('strip says it has all-day items above', /כל היום/.test(lbl), lbl);
     if (shots) await b.shot(resolve(EV, 'ui-v023-strips.png'));
     // scroll up to the day's all-day row → those columns come back (narrow all-day width) with their chips
-    const adY = await b.js(`(()=>{const c=[...document.querySelectorAll('.canvas .col[data-t="Tasks"] .chip')].find(e=>/משובי קהל \\(1/.test(e.textContent));return parseFloat(c.style.top)})()`);
+    const adY = await b.js(`(()=>{const st=document.querySelector('.vp').scrollTop;const c=[...document.querySelectorAll('.canvas .col[data-t="Social Posts"] .chip,.canvas .col[data-t="Booking Resources"] .chip')].filter(e=>parseFloat(e.style.top)<st).sort((a,b)=>parseFloat(b.style.top)-parseFloat(a.style.top))[0];return c?parseFloat(c.style.top):0})()`); // v0.2.11: Tasks removed → the 2.11 all-day row via its Social Posts / Booking Resources chips
     await b.js(`document.querySelector('.vp').scrollTop=${adY}-120`);
     await sleep(500);
     const cols2 = await b.js(`Object.fromEntries([...document.querySelectorAll('.cols > [data-t]')].map(e=>[e.dataset.t,{cz:e.classList.contains('cz'),ad:e.classList.contains('adonly'),w:Math.round(e.getBoundingClientRect().width),n:e.querySelector('.vc')?.textContent}]))`);
     const d2 = (await st()).day;
-    check('all-day row of 2.11 on screen → the three open at the all-day width, counted', /2\.11/.test(d2) && three.every(t => !cols2[t].cz && cols2[t].ad && +cols2[t].n > 0), {d2, c: three.map(t => cols2[t])});
+    check('all-day row of 2.11 on screen → the two open at the all-day width, counted', /2\.11/.test(d2) && three.every(t => !cols2[t].cz && cols2[t].ad && +cols2[t].n > 0), {d2, c: three.map(t => cols2[t])});
     if (shots) await b.shot(resolve(EV, 'ui-v023-strips-allday-row.png'));
     // a click on the strip still forces it open
     await b.js(`document.querySelector('.vp').scrollTop=${adY}+900`);

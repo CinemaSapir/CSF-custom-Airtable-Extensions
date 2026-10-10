@@ -12,7 +12,7 @@
 // «Countdown-Homescreen» = «countdown_homescreen». No row matched → the panel lists the Extension and Variant values it
 // actually sees (≤ 10 each, invisible chars made visible) and whether the Extension / Variant fields are visible.
 
-export const STATUS_PANEL_VERSION = 'status-panel v4';
+export const STATUS_PANEL_VERSION = 'status-panel v5';
 export const STATUS_TOGGLE_KEY = 'showStatusPanel';
 export const STATUS_TOGGLE_LABEL = 'show מצב חיבור · Extension_Config';
 
@@ -52,7 +52,7 @@ export function visibleChars(s: string): string {
     return '␠'.repeat(lead) + mid.join('') + '␠'.repeat(chars.length - end);
 }
 export const SEEN_VALUES_MAX = 10;
-const DEFAULT_VARIANT_WORDS = ['', 'default', 'ברירת מחדל', 'ברירתמחדל', '-', '—'].map(looseKey);
+const DEFAULT_VARIANT_WORDS = ['', 'default', 'ברירת מחדל', 'ברירתמחדל', 'ברירת המחדל', 'base', 'main', '-', '—'].map(looseKey);
 /** "", "default", «ברירת מחדל», "-" → "" (= the default row). */
 export function variantKey(v: unknown): string {
     const k = looseKey(v);
@@ -335,3 +335,121 @@ export function inlineCandidates(values: ReadonlyArray<readonly [slot: string, v
     return out;
 }
 export const EDIT_UNDO_MS = 6000;
+
+// ---------------------------------------------------------------------------
+// v5 (the owner 16:43, «MAKE SEARCH MORE FLEXIBLE»): scored Extension_Config row matching — ONE function used by the hook
+// (useExtensionConfig) AND the «מצב חיבור» panel, so both always agree on which row wins and why.
+// ---------------------------------------------------------------------------
+/** Per-extension aliases (first = canonical slug). A row whose Extension equals / contains any of them matches. */
+export const CONFIG_ALIASES: readonly (readonly string[])[] = [
+    ['timeline-festival-days', 'timeline festival days', 'timeline', 'program-by-day', 'program by day', 'טיימליין', 'טיימליין ימים', 'פרוגרמה'],
+    ['countdown-homescreen', 'countdown homescreen', 'countdown', 'homescreen', 'home screen', 'ספירה לאחור', 'מסך בית'],
+    ['lists-ui', 'lists ui', 'lists', 'רשימות'],
+    ['people-roles', 'people roles', 'phone book', 'phonebook', 'ספר טלפונים', 'אנשים ותפקידים'],
+    ['bulk-sheet', 'bulk sheet', 'bulk', 'קופי פייסט', 'הזנה מרובה'],
+    ['hospitality', 'אירוח'],
+];
+/** [slug, …its alias group] (slug first). Unknown slug → just [slug]. */
+export function aliasesFor(slug: string): string[] {
+    const k = looseKey(slug);
+    const g = CONFIG_ALIASES.find(a => a.some(x => looseKey(x) === k));
+    return [slug, ...(g ?? []).filter(x => looseKey(x) !== k)];
+}
+/** words (lowercased, invisible chars dropped), split on anything that is not a letter / digit */
+export function tokensOf(s: unknown): string[] {
+    return String(s ?? '')
+        .normalize('NFKC')
+        .replace(/\p{Cf}|[\u0591-\u05C7]|\p{Mn}/gu, '')
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter(t => t.length >= 2);
+}
+/** GitHub_URL → its last folder («…/tree/main/timeline-festival-days» → «timeline-festival-days») */
+export function githubFolder(url: unknown): string {
+    const u = String(url ?? '').trim().replace(/[?#].*$/, '').replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(u)) return '';
+    const seg = u.split('/').filter(Boolean);
+    return seg.length > 3 ? decodeURIComponent(seg[seg.length - 1]) : '';
+}
+/** 100 = the slug · 90 = an alias · 75 = every word of an alias · 60 = contains an alias · 45 = is part of an alias · 0 = no */
+export function textScore(text: unknown, aliases: readonly string[]): {score: number; how: string} {
+    const k = looseKey(text);
+    if (!k) return {score: 0, how: ''};
+    const toks = new Set(tokensOf(text));
+    let best = {score: 0, how: ''};
+    const take = (score: number, how: string) => {
+        if (score > best.score) best = {score, how};
+    };
+    aliases.forEach((a, i) => {
+        const ak = looseKey(a);
+        if (!ak) return;
+        if (k === ak) take(i === 0 ? 100 : 90, i === 0 ? 'זהה' : `כינוי «${a}»`);
+        const at = tokensOf(a);
+        if (at.length >= 2 && at.every(t => toks.has(t))) take(75, `כל המילים של «${a}»`);
+        if (ak.length >= 4 && k.includes(ak)) take(60, `מכיל «${a}»`);
+        if (k.length >= 4 && ak.includes(k)) take(45, `חלק מ-«${a}»`);
+    });
+    return best;
+}
+export type MatchRow = {id: string; primary: string; extension: string; variant: string; displayName: string; github: string};
+export type ScoredRow = MatchRow & {
+    /** 0–100 after the source weight (Extension 1 · primary .95 · Display_Name .9 · GitHub_URL folder .85) */
+    score: number;
+    how: string;
+    via: 'Extension' | 'primary' | 'Display_Name' | 'GitHub_URL' | null;
+    /** variant as seen from the DEFAULT row's point of view: empty · alias (Variant = an alias → default) · other */
+    variantMode: 'empty' | 'alias' | 'other';
+};
+export const MATCH_MIN_SCORE = 40;
+/** Score one row. The Extension cell decides when it has a value; empty / hidden → primary, Display_Name, GitHub_URL folder (best of). */
+export function scoreConfigRow(r: MatchRow, slug: string): ScoredRow {
+    const al = aliasesFor(slug);
+    let score = 0;
+    let how = '';
+    let via: ScoredRow['via'] = null;
+    if (r.extension.trim()) {
+        ({score, how} = textScore(r.extension, al));
+        if (score) via = 'Extension';
+    } else {
+        for (const [src, w, v] of [
+            ['primary', 0.95, r.primary],
+            ['Display_Name', 0.9, r.displayName],
+            ['GitHub_URL', 0.85, githubFolder(r.github)],
+        ] as const) {
+            const t = textScore(v, al);
+            const s = Math.round(t.score * w);
+            if (s > score) [score, how, via] = [s, t.how, src];
+        }
+    }
+    const vk = variantKey(r.variant);
+    const variantMode: ScoredRow['variantMode'] = vk === '' ? 'empty' : al.some(a => looseKey(a) === vk) ? 'alias' : 'other';
+    return {...r, score, how, via, variantMode};
+}
+/** Default-row rank: «other» Variants lose 40 so an empty / alias Variant wins, but are still accepted when nothing else matches; on a tie empty beats alias. */
+const defaultRank = (r: ScoredRow) => r.score - (r.variantMode === 'other' ? 40 : 0) + (r.variantMode === 'empty' ? 2 : r.variantMode === 'alias' ? 1 : 0);
+export type ConfigPick = {
+    /** default row (Variant empty / alias; else the best of any Variant) */
+    best: ScoredRow | null;
+    /** row for the wanted (non-empty) Variant */
+    variantBest: ScoredRow | null;
+    /** every row ≥ MATCH_MIN_SCORE, best first (the panel lists them) */
+    ranked: ScoredRow[];
+    /** all rows scored (panel «seen rows») */
+    all: ScoredRow[];
+    /** two default candidates with the same rank */
+    tie: boolean;
+    /** best default had a non-empty, non-alias Variant (accepted because nothing better) */
+    anyVariant: boolean;
+};
+export function pickConfigRows(rows: readonly MatchRow[] | null, slug: string, variant: string): ConfigPick {
+    const all = (rows ?? []).map(r => scoreConfigRow(r, slug));
+    const ranked = all.filter(r => r.score >= MATCH_MIN_SCORE).sort((a, b) => defaultRank(b) - defaultRank(a) || b.score - a.score);
+    const wv = variantKey(variant);
+    const defaults = ranked.filter(r => r.variantMode !== 'other');
+    // the default row: empty Variant first, then a Variant that is an alias of the extension, else any Variant (anyVariant)
+    const best = defaults[0] ?? ranked.find(r => !wv || variantKey(r.variant) !== wv) ?? ranked[0] ?? null;
+    // the wanted Variant's own row (also when the wanted Variant is an alias, e.g. legacy program-by-day + «timeline») overlays the default
+    const variantBest = wv ? (ranked.filter(r => r !== best && variantKey(r.variant) === wv).sort((a, b) => b.score - a.score)[0] ?? null) : null;
+    const tie = defaults.length > 1 && defaultRank(defaults[0]) === defaultRank(defaults[1]);
+    return {best, variantBest, ranked, all, tie, anyVariant: !!best && best.variantMode === 'other'};
+}

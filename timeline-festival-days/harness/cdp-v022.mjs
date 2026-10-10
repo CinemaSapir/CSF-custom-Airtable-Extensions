@@ -31,12 +31,14 @@ try {
     await b.clickSel('.jumpc .jgo');
     await sleep(700);
     const open17 = await b.js(`[...document.querySelectorAll('.cols > [data-t]')].filter(e=>!e.classList.contains('cz')).map(e=>e.dataset.t)`);
-    check('7: 17.10 (all-day row on screen) → only the column with items stays open', open17.length === 1 && open17[0] === 'Tasks', open17);
+    check('7: 17.10 (v0.2.11: Tasks removed → no items that day) → no column stays open', open17.length === 0, open17);
     // close its only column by hand (⋯ → סגור עמודה) → nothing on screen that day
-    await b.clickSel('.cols > [data-t="Tasks"] .cm2');
-    await sleep(300);
-    await b.clickSel('.hmenu.open > div:last-child');
-    await sleep(500);
+    if (open17.length) {
+        await b.clickSel(`.cols > [data-t="${open17[0]}"] .cm2`);
+        await sleep(300);
+        await b.clickSel('.hmenu.open > div:last-child');
+        await sleep(500);
+    }
     const empty = await b.js(`({all:[...document.querySelectorAll('.cols > [data-t]')].every(e=>e.classList.contains('cz')),note:document.querySelector('.dayempty')?.textContent||''})`);
     check('7: nothing left open → every column is a strip + says so (no wall of empty open columns)', empty.all && /אין פריטים/.test(empty.note), empty);
 
@@ -73,7 +75,7 @@ try {
     check('2 (v0.2.3): neutral hover tint grayLight2', hov === 'rgb(238, 238, 238)' && hov !== before, [before, hov]);
     const crimson = await b.js(`[...document.querySelectorAll('*')].filter(e=>{const c=getComputedStyle(e);return [c.color,c.backgroundColor,c.borderTopColor].some(v=>v==='rgb(220, 4, 59)')}).length`);
     check('2: no crimson left on screen', crimson === 0, crimson);
-    const lowC = await b.js(`(()=>{const L=c=>{const m=c.match(/\\d+(\\.\\d+)?/g).map(Number).slice(0,3).map(v=>v/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4);return .2126*m[0]+.7152*m[1]+.0722*m[2]};const cr=(a,b)=>{const[x,y]=[L(a),L(b)].sort((p,q)=>q-p);return (x+.05)/(y+.05)};const bgOf=e=>{for(let n=e;n;n=n.parentElement){const b=getComputedStyle(n).backgroundColor;if(b&&!/rgba\\(\\d+, \\d+, \\d+, 0\\)|transparent/.test(b)&&!/rgba/.test(b))return b}return 'rgb(250, 247, 242)'};const bad=[];for(const s of ['.ban .ctr','.dayh .dn','.dayh .ds','.cols .nmh','.hlab','.wc .nm','.ev b','.lnk','.ban .bb','.clock']){const e=document.querySelector(s);if(!e)continue;const r=cr(getComputedStyle(e).color,bgOf(e));if(r<4.5)bad.push([s,+r.toFixed(2)])}return bad})()`);
+    const lowC = await b.js(`(()=>{const L=c=>{const m=c.match(/\\d+(\\.\\d+)?/g).map(Number).slice(0,3).map(v=>v/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4);return .2126*m[0]+.7152*m[1]+.0722*m[2]};const cr=(a,b)=>{const[x,y]=[L(a),L(b)].sort((p,q)=>q-p);return (x+.05)/(y+.05)};const bgOf=e=>{for(let n=e;n;n=n.parentElement){const b=getComputedStyle(n).backgroundColor;if(b&&!/rgba\\(\\d+, \\d+, \\d+, 0\\)|transparent/.test(b)&&!/rgba/.test(b))return b}return 'rgb(250, 247, 242)'};const bad=[];for(const s of ['.ban .ctr','.dayh .dn','.dayh .ds','.cols .nmh','.hlab:not(.cmpl)','.wc .nm','.ev b','.lnk','.ban .bb','.clock']){const e=document.querySelector(s);if(!e)continue;const r=cr(getComputedStyle(e).color,bgOf(e));if(r<4.5)bad.push([s,+r.toFixed(2)])}return bad})()`);
     check('2: text contrast ≥ 4.5:1 on the key elements', lowC.length === 0, lowC);
 
     // ---------------- 4. jump control: one inline control, date + time side by side, no popup panel

@@ -136,7 +136,7 @@ try {
     check('when others cannot shrink below 140 the grid scrolls sideways', tot2.sw > tot2.cw + 100, tot2);
     const minOther = await js(`Math.min(...[...document.querySelectorAll('.cols > [data-t]:not(.cz):not(.adonly)')].map(e=>e.getBoundingClientRect().width))`);
     check('no other timed column below 140px', minOther >= 139.5, minOther);
-    await wheel(vp.x + vp.w / 2, vp.y + vp.h / 2, 0, -400);
+    await wheel(vp.x + vp.w / 2, vp.y + vp.h / 2, 0, -150); // v0.2.11: 7 columns → less sideways room; stay off the clamp edge
     await sleep(300);
     const sl = await js(`(()=>({vp:document.querySelector('.vp').scrollLeft,cols:document.querySelector('.cols').scrollLeft}))()`);
     check('horizontal wheel scrolls sideways, header stays aligned', sl.vp !== 0 && Math.abs(sl.vp - sl.cols) < 1, sl);

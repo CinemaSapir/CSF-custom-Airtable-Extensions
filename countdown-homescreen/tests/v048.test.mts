@@ -9,6 +9,12 @@ import * as S from '../frontend/statusCore.ts';
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const Module = require('module');
+// hook v4 imports ./statusCore (pickConfigRows) — compile it the same way
+const STATUS_CORE = (() => {
+    const sc = new Module('statusCore.js');
+    sc._compile(ts.transpileModule(readFileSync(new URL('../frontend/statusCore.ts', import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}}).outputText, 'statusCore.js');
+    return sc.exports;
+})();
 const js = ts.transpileModule(readFileSync(new URL('../frontend/useExtensionConfig.ts', import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020},
 }).outputText;
@@ -19,6 +25,7 @@ const fakeReact = {
 };
 const orig = Module._load;
 Module._load = function (r: string, ...a: unknown[]) {
+    if (r === './statusCore') return STATUS_CORE;
     if (r === 'react') return fakeReact;
     if (r.startsWith('@airtable')) return {useRecords: () => recs};
     return orig.call(this, r, ...a);
@@ -63,9 +70,10 @@ test('hook v3.4: Extension / Variant FIELDS found loosely («Extension », «ext
     assert.equal(cfg.text('Title'), 'T');
     assert.deepEqual(cfg.debug.extensionValues, ['countdown-homescreen']);
 });
-test('hook: a Variant row still does not steal the default row; other extensions never match', () => {
-    assert.equal(run([rec({Extension: 'countdown homescreen', Variant: 'big', Title: 'V'})]).status, 'no-record');
-    assert.equal(run([rec({Extension: 'countdown-homescreen-old', Title: 'X'})]).status, 'no-record');
+test('hook v4 (superseded v0.4.8 rule): only a Variant row → accepted; «…-old» contains the slug → accepted; other extensions never match', () => {
+    assert.equal(run([rec({Extension: 'countdown homescreen', Variant: 'big', Title: 'V'})]).status, 'ok');
+    assert.equal(run([rec({Extension: 'countdown-homescreen-old', Title: 'X'})]).status, 'ok');
+    assert.equal(run([rec({Extension: 'timeline-festival-days', Title: 'T'}), rec({Extension: 'bulk-sheet', Title: 'B'})]).status, 'no-record');
 });
 test('panel core: no match → Extension AND Variant values it sees; invisible chars made visible; ≤ 10 shown', () => {
     const rows = [
@@ -82,7 +90,7 @@ test('panel core: no match → Extension AND Variant values it sees; invisible c
     assert.equal(S.visibleChars(' a '), '␠a␠');
     assert.equal(S.SEEN_VALUES_MAX, 10);
     assert.equal(S.looseField([{name: 'Extension '}, {name: 'x'}], 'Extension')!.name, 'Extension ');
-    assert.equal(S.STATUS_PANEL_VERSION, 'status-panel v4');
+    assert.equal(S.STATUS_PANEL_VERSION, 'status-panel v5');
 });
 test('StatusPanel: NoRow block lists values (≤ SEEN_VALUES_MAX) + Extension / Variant field visibility', () => {
     const src = readFileSync(new URL('../frontend/StatusPanel.tsx', import.meta.url), 'utf8');

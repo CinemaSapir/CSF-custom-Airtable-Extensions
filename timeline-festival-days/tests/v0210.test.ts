@@ -46,6 +46,6 @@ test('v0.2.10 (13:22): loose spellings of the key still pick the new row; hook m
         assert.equal(k.legacy, false, v);
     }
     const hook = readFileSync('frontend/useExtensionConfig.ts', 'utf8');
-    assert.match(hook, /looseName\(cellStr\(r, extField\)\) === slugKey/);
+    assert.match(hook, /pickConfigRows\(rows, slug, variant\)/); // v0.2.11: hook v4 scored matching (statusCore)
     assert.match(hook, /\\p\{Cf\}/);
 });

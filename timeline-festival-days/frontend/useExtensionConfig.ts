@@ -1,4 +1,11 @@
 /**
+ * v4 (2026-10-10 16:43, «MAKE SEARCH MORE FLEXIBLE»): ONE byte-identical copy in every extension (+ csf-extension-config).
+ *   The config row is picked by statusCore.pickConfigRows (the same function the «מצב חיבור» panel shows): per-extension
+ *   aliases, token / contains match, Extension hidden or empty → primary field, Display_Name, GitHub_URL folder; Variant:
+ *   empty preferred, a Variant equal to an alias = default, any Variant accepted when nothing better; best score wins.
+ *   Door 2 stays OPT-IN (`writes: true`; `door2: false` also blocks it) → read-only unless asked (the owner 23:58).
+ * v3.4 (13:22): Extension / Variant fields and values matched very loosely (see looseName).
+ *
  * useExtensionConfig v3 — shared "two-door" config hook for CSF Airtable interface extensions.
  *
  * v3 (Critic's timeline config-fit review): Toggle_Label_1–10, Filter_6–10, Me_Field, Dropdown_6–10, Option_List_6–10,
@@ -50,9 +57,6 @@
  * Option_List line: "value | label | colour | icon" — only value is required. Blank label = value; blank colour /
  *   icon = render NOTHING (no placeholder dot or emoji). A trailing "|" is fine. "#" lines are comments.
  *
- * v3.4 (timeline v0.2.10, 13:22): Extension / Variant fields and values matched very loosely (= shared hook v3.4).
- * csf-timeline copy: + ConfigOptions.door2 (false = read-only; v0.1.0 never writes the shared program-by-day rows).
- *
  * Drop this file into <ext>/frontend/ and add custom properties:
  *   {key: 'configTable',   label: 'טבלת הגדרות (Extension_Config)', type: 'table', defaultValue: base.getTableByNameIfExists(CONFIG_TABLE_NAME) ?? undefined}
  *   {key: 'configSlug',    label: 'מפתח הגדרות (Extension)',        type: 'string', defaultValue: '<default-slug>'}
@@ -62,6 +66,7 @@
 import {createContext, createElement, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {useRecords} from '@airtable/blocks/interface/ui';
 import type {Base, Field, Record as AirtableRecord, Table} from '@airtable/blocks/interface/models';
+import {pickConfigRows, type ConfigPick, type MatchRow} from './statusCore';
 
 export const CONFIG_TABLE_NAME = 'Extension_Config';
 
@@ -300,6 +305,10 @@ export type ExtensionConfig = {
     meRef: () => ResolvedRef;
     /** raw string of any slot (after variant/default/code fallback) */
     raw: (slot: Slot) => string;
+    /** v4: every row scored by pickConfigRows (best first = ranked; all = every row) — the panel lists these */
+    match: ConfigPick;
+    /** v0.4.3 diagnostics («מצב חיבור») */
+    debug: {tableName: string | null; rowCount: number | null; extensionValues: string[]; visibleFields: string[]; matchedExtension: string | null};
 };
 
 // ---------------------------------------------------------------------------
@@ -318,8 +327,6 @@ export function looseName(s: string): string {
         .toLowerCase()
         .replace(/[\s\p{Z}\p{Pd}_.\u05BE\u2010-\u2015\u2212]+/gu, '');
 }
-const DEFAULT_VARIANT_KEYS = new Set(['', 'default', 'ברירתמחדל', 'ברירתהמחדל', 'base', 'main']);
-
 function findLoose<T extends {id: string; name: string}>(items: readonly T[], ref: string): T | null {
     const r = ref.trim();
     if (!r) return null;
@@ -584,9 +591,16 @@ export type ConfigOptions = {
     displayName?: string;
     defaults: ConfigDefaults;
     docs: SlotDocs;
-    /** csf-timeline: false = Door 1 only (never write to Extension_Config). */
+    /** Door 2 (extension → table writes). Default OFF = read-only. */
+    writes?: boolean;
+    /** csf-timeline name for the same switch: false = never write (kept so every extension shares this file). */
     door2?: boolean;
 };
+
+/** Extension_Config by exact name, then loose (case / spaces / _ - . / nikud ignored). */
+export function findConfigTable(base: Base): Table | null {
+    return base.getTableByNameIfExists(CONFIG_TABLE_NAME) ?? findLoose(base.tables, CONFIG_TABLE_NAME);
+}
 
 const Ctx = createContext<ExtensionConfig | null>(null);
 
@@ -600,14 +614,20 @@ function WithoutTable(props: ConfigOptions & {children?: ReactNode}) {
     return createElement(Ctx.Provider, {value: cfg}, props.children);
 }
 export function ExtensionConfigProvider(props: ConfigOptions & {children?: ReactNode}) {
-    const table = props.configTable ?? props.base.getTableByNameIfExists(CONFIG_TABLE_NAME);
-    return table ? createElement(WithTable, {...props, table}) : createElement(WithoutTable, props);
+    // null = explicitly none (read nothing); undefined = find by name
+    const table = props.configTable === null ? null : (props.configTable ?? findConfigTable(props.base));
+    return table ? createElement(WithTable, {...props, table, key: table.id}) : createElement(WithoutTable, props);
 }
 /** Read the config inside <ExtensionConfigProvider>. */
 export function useExtensionConfig(): ExtensionConfig {
     const cfg = useContext(Ctx);
     if (!cfg) throw new Error('useExtensionConfig() must be used inside <ExtensionConfigProvider>');
     return cfg;
+}
+/** Same, but null outside a provider (no throw) — for components that also render in tests / harnesses without one
+ *  (lists-ui / people-roles / bulk-sheet use it; v4.1 merges it into the one shared hook). */
+export function useExtensionConfigOptional(): ExtensionConfig | null {
+    return useContext(Ctx);
 }
 
 function useConfigCore(opts: ConfigOptions, table: Table | null, records: readonly AirtableRecord[] | null): ExtensionConfig {
@@ -616,34 +636,30 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
     const [syncError, setSyncError] = useState<string | null>(null);
     const busy = useRef(false);
 
-    // v3.4: Extension / Variant fields AND values matched LOOSELY (exact first); «default» / «ברירת מחדל» / «-» = default row.
-    const slugKey = looseName(slug);
+    // v4: Extension / Variant / Display_Name / GitHub_URL FIELDS found loosely (exact name first); ROWS scored by
+    // statusCore.pickConfigRows — the very function the «מצב חיבור» panel lists, so hook and panel always agree.
     const fieldLoose = (name: string) => (table ? (table.getFieldByNameIfExists(name) ?? table.fields.find(f => looseName(f.name) === looseName(name)) ?? null) : null);
     const extField = fieldLoose(F.extension);
     const varField = fieldLoose(F.variant);
-    const cellStr = (r: AirtableRecord, f: NonNullable<typeof extField>) => {
+    const dispField = fieldLoose(F.displayName);
+    const ghField = fieldLoose('GitHub_URL');
+    const cellStr = (r: AirtableRecord, f: Field | null) => {
+        if (!f) return '';
         try {
-            return r.getCellValueAsString(f.name);
+            return r.getCellValueAsString(f.name); // by the real (visible) name — same as the rest of the hook
         } catch {
             return '';
         }
     };
-    const variantKey = (r: AirtableRecord) => {
-        if (!varField) return '';
-        const k = looseName(cellStr(r, varField));
-        return DEFAULT_VARIANT_KEYS.has(k) ? '' : k;
-    };
-    const rowsFor = (v: string) => {
-        if (!table || !records || !extField) return [];
-        const vk = DEFAULT_VARIANT_KEYS.has(looseName(v)) ? '' : looseName(v);
-        const hits = records.filter(r => looseName(cellStr(r, extField)) === slugKey && variantKey(r) === vk);
-        const exact = hits.filter(r => cellStr(r, extField).trim() === slug);
-        return [...exact, ...hits.filter(r => !exact.includes(r))];
-    };
-    const baseMatches = useMemo(() => rowsFor(''), [table, records, slug]); // eslint-disable-line react-hooks/exhaustive-deps
-    const varMatches = useMemo(() => (variant ? rowsFor(variant) : []), [table, records, slug, variant]); // eslint-disable-line react-hooks/exhaustive-deps
-    const record = baseMatches[0] ?? null;
-    const variantRecord = varMatches[0] ?? null;
+    const pick = useMemo(() => {
+        const rows: MatchRow[] | null = table && records
+            ? records.map(r => ({id: r.id, primary: (() => { try { return r.name ?? ''; } catch { return ''; } })(), extension: cellStr(r, extField), variant: cellStr(r, varField), displayName: cellStr(r, dispField), github: cellStr(r, ghField)}))
+            : null;
+        return pickConfigRows(rows, slug, variant);
+    }, [table, records, slug, variant, extField, varField, dispField, ghField]);
+    const byId = (id: string | undefined) => (id && records ? (records.find(r => r.id === id) ?? null) : null);
+    const record = byId(pick.best?.id);
+    const variantRecord = byId(pick.variantBest?.id);
 
     // ---------------- Door 1 layers ----------------
     const status: ConfigStatus = !table
@@ -654,7 +670,7 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
             ? 'no-record'
             : cellRaw(record, F.useDefaultsOnly, table) === true
               ? 'defaults-only'
-              : baseMatches.length > 1 || varMatches.length > 1
+              : pick.tie
                 ? 'duplicate'
                 : 'ok';
     const live = status === 'ok' || status === 'duplicate';
@@ -684,7 +700,8 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
 
     // ---------------- Door 2: extension → table ----------------
     useEffect(() => {
-        if (opts.door2 === false || !table || !records || busy.current) return;
+        if (!opts.writes || opts.door2 === false) return; // read-only unless explicitly enabled
+        if (!table || !records || busy.current) return;
         if (record && cellRaw(record, F.useDefaultsOnly, table) === true) return; // emergency switch: no writes either
 
         type Job = {row: AirtableRecord | null; isVariant: boolean; key: string};
@@ -753,7 +770,7 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
                 busy.current = false;
             });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [table, records, record, variantRecord, slug, variant, version, blockId, displayName, defaults, docs]);
+    }, [opts.writes, opts.door2, table, records, record, variantRecord, slug, variant, version, blockId, displayName, defaults, docs]);
 
     // ---------------- Door 1 accessors ----------------
     const text = (slot: TextSlot) => rawOf(slot);
@@ -925,6 +942,14 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
         toggleSpec,
         meRef,
         raw: rawOf,
+        match: pick,
+        debug: {
+            tableName: table ? table.name : null,
+            rowCount: records ? records.length : null,
+            extensionValues: records && extField ? records.slice(0, 20).map(r => cellStr(r, extField)) : [],
+            visibleFields: table ? table.fields.map(f => f.name) : [],
+            matchedExtension: record && extField ? cellStr(record, extField) : null,
+        },
     };
 }
 
@@ -950,7 +975,7 @@ export const COUNTDOWN_DEFAULTS: ConfigDefaults = {
     Source_Field_5: 'Slots_Events.End',
     Option_List_1: 'משובץ',
     Date_1: '2026-10-24T20:00:00+03:00',
-    Date_2: '2026-10-31T00:00:00+03:00',
+    Date_2: '2026-10-31T00:00:00+02:00', // Israel winter time (DST ends 25.10)
     Duration_1: 3600,
     Toggle_1: true,
     Error_Text_1: 'לא נמצאה הטבלה Slots_Events (או שלא הופעלה בחלונית הימנית)',

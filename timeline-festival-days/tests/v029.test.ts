@@ -11,8 +11,12 @@ const req = createRequire(process.cwd() + '/package.json');
 const ts = req('typescript');
 const Mod = req('module');
 const hookJs = ts.transpileModule(readFileSync('frontend/useExtensionConfig.ts', 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}}).outputText;
+// hook v4 imports ./statusCore → compile it too
+const sc = new Mod('statusCore.js');
+sc._compile(ts.transpileModule(readFileSync('frontend/statusCore.ts', 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}}).outputText, 'statusCore.js');
 const origLoad = Mod._load;
 Mod._load = function (r: string, ...a: unknown[]) {
+    if (r === './statusCore') return sc.exports;
     if (r === 'react') return {createContext: () => ({}), createElement() {}, useContext() {}, useEffect() {}, useMemo() {}, useRef() {}, useState() {}};
     if (r.startsWith('@airtable')) return {useRecords() {}};
     return origLoad.call(this, r, ...a);

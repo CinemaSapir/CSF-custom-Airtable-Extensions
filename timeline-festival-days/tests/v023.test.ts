@@ -15,9 +15,9 @@ const rows = String(TIMELINE_DEFAULTS.Option_List_6)
 test('palette: Option_List_6 defaults are Critic option B SDK fill names', () => {
     const want: {[t: string]: string} = {
         Slots_Events: 'blueLight2', Staffing: 'tealLight2', Invitations: 'tealLight1', Itinerary: 'purpleLight2', Lodging: 'purpleLight2', 'Booking Resources': 'purpleLight1',
-        Tasks: 'greenLight1', 'Social Posts': 'greenLight2', 'Petty Cash': 'yellowLight2', Requests: 'orangeLight2', transactions: 'yellowLight1', Notebook: 'grayLight2', Approvals: 'orangeLight1',
+        'Social Posts': 'greenLight2', // v0.2.11: Tasks, Petty Cash, Requests, transactions, Notebook, Approvals removed
     };
-    assert.equal(rows.length, 13);
+    assert.equal(rows.length, 7);
     for (const [t, , c] of rows) assert.equal(c, want[t], t);
     assert.deepEqual([TIMELINE_DEFAULTS.Color_1, TIMELINE_DEFAULTS.Color_2, TIMELINE_DEFAULTS.Color_3], ['grayLight2', 'cyanLight2', 'yellowLight2']);
 });
@@ -74,7 +74,7 @@ test('band: the lens takes over the card head when the band reaches the title (t
     assert.deepEqual(lensPlan({top: 160, height: 80}, 400), {top: 160, minH: 80, maxH: 80, head: false});
     assert.equal(lensPlan(null, 100), null);
     assert.equal(lensPlan({top: 300, height: 12}, 320), null); // sliver at the card bottom → no lens
-    assert.ok(/\.ev\.lenshead>b,\.ev\.lenshead>small\{visibility:hidden\}/.test(CSS));
+    assert.ok(/\.ev\.lenshead>b,\.ev\.lenshead>\.evt,\.ev\.lenshead>small\{visibility:hidden\}/.test(CSS)); // v0.2.11: title + 👁 live in .evt
 });
 
 test('REGRESSION strips: a column with only all-day items goes to the strips when that row is off screen (count 0)', () => {

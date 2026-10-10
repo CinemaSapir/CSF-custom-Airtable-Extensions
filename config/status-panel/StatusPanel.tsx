@@ -1,4 +1,4 @@
-// CSF shared «מצב חיבור» status panel — view (status-panel v3: + Attachment_Mapping_Image / GitHub_URL line). Same file in every extension; see statusCore.ts.
+// CSF shared «מצב חיבור» status panel — view (status-panel v5: ALWAYS lists the seen rows + match score, same pickConfigRows as the hook). Same file in every extension; see statusCore.ts.
 // Read-only: useRecords on the config table (only while the panel is ON) to report row count / Extension values.
 import {useState} from 'react';
 import {useRecords} from '@airtable/blocks/interface/ui';
@@ -12,12 +12,15 @@ import {
     looseField,
     looseKey,
     missingFields,
+    MATCH_MIN_SCORE,
     overallOk,
+    pickConfigRows,
     rowSummary,
     variantKey,
     visibleChars,
     yn,
-    type ConfigRow,
+    type ConfigPick,
+    type MatchRow,
     type MappingResult,
     type RowSummary,
     type StatusFilter,
@@ -66,7 +69,16 @@ function WithRows(p: StatusPanelProps & {table: Table}) {
             return '';
         }
     };
-    const rows: ConfigRow[] | null = recs ? recs.map(r => ({id: r.id, extension: str(r, ext), variant: str(r, vf)})) : null;
+    const dn = looseField(p.table.fields, 'Display_Name');
+    const gh = looseField(p.table.fields, 'GitHub_URL');
+    const prim = (r: AtRecord) => {
+        try {
+            return r.name ?? '';
+        } catch {
+            return '';
+        }
+    };
+    const rows: MatchRow[] | null = recs ? recs.map(r => ({id: r.id, primary: prim(r), extension: str(r, ext), variant: str(r, vf), displayName: str(r, dn), github: str(r, gh)})) : null;
     const mapping = readMapping(p.table, recs ?? null, p.record, p.variantRecord, p.slug);
     return <Body {...p} rows={rows} hasExtField={!!ext} hasVariantField={!!vf} extFieldName={ext?.name} mapping={mapping} />;
 }
@@ -113,12 +125,60 @@ function NoRow(p: {sum: RowSummary; slug: string; hasExt?: boolean; hasVar?: boo
     );
 }
 
-function Body(p: StatusPanelProps & {rows: ConfigRow[] | null; hasExtField?: boolean; hasVariantField?: boolean; extFieldName?: string; mapping: MappingResult | null}) {
+const VIA_HE: Record<string, string> = {Extension: 'Extension', primary: 'שדה ראשי', Display_Name: 'Display_Name', GitHub_URL: 'תיקיית GitHub_URL'};
+/** v5: every row the panel sees (≤ SEEN_VALUES_MAX), its score, how it matched and which one the hook uses. */
+function SeenRows(p: {pick: ConfigPick; usedId: string | null; variantId: string | null}) {
+    const rows = [...p.pick.all].sort((a, b) => b.score - a.score);
+    const others = p.pick.ranked.filter(r => r.id !== p.usedId && r.id !== p.variantId);
+    return (
+        <div className="csfst-seen" data-slot="status-seen-rows">
+            <div>
+                שורות שנראות ({rows.length}) · ציון התאמה (סף {MATCH_MIN_SCORE}):
+                {p.pick.anyVariant && <span className="csfst-bad"> · אין שורה עם Variant ריק — נבחרה שורה עם Variant אחר</span>}
+                {p.pick.tie && <span className="csfst-bad"> · כמה שורות עם אותו ציון — נבחרה הראשונה</span>}
+                {others.length > 0 && <span className="csfst-dim"> · התאמות נוספות: {others.length}</span>}
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>שדה ראשי</th>
+                        <th>Extension</th>
+                        <th>Variant</th>
+                        <th>ציון</th>
+                        <th>לפי</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.slice(0, SEEN_VALUES_MAX).map(r => (
+                        <tr key={r.id} className={r.id === p.usedId || r.id === p.variantId ? 'csfst-used' : r.score >= MATCH_MIN_SCORE ? '' : 'csfst-dim'}>
+                            <td>{r.id === p.usedId ? '✓ בשימוש' : r.id === p.variantId ? '✓ Variant' : r.score >= MATCH_MIN_SCORE ? 'מתאימה' : ''}</td>
+                            <td>{visibleChars(r.primary) || '—'}</td>
+                            <td>
+                                <code>{visibleChars(r.extension) || '(ריק)'}</code>
+                            </td>
+                            <td>
+                                <code>{visibleChars(r.variant) || '(ריק)'}</code>
+                                {r.variantMode === 'alias' ? ' = ברירת מחדל' : ''}
+                            </td>
+                            <td>{r.score}</td>
+                            <td>{r.score ? `${VIA_HE[r.via ?? ''] ?? ''}: ${r.how}` : '—'}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {rows.length > SEEN_VALUES_MAX && <div className="csfst-dim">+{rows.length - SEEN_VALUES_MAX} שורות נוספות</div>}
+        </div>
+    );
+}
+
+function Body(p: StatusPanelProps & {rows: MatchRow[] | null; hasExtField?: boolean; hasVariantField?: boolean; extFieldName?: string; mapping: MappingResult | null}) {
     const [open, setOpen] = useState(true);
     const t = p.configTable;
     const visible = t ? t.fields.map(f => f.name) : [];
     const missing = t ? missingFields(p.fieldsUsed, visible) : [];
     const sum: RowSummary | null = rowSummary(p.rows, p.slug, p.variant);
+    const pick: ConfigPick | null = p.rows ? pickConfigRows(p.rows, p.slug, p.variant) : null;
     const usedRow = p.record ? p.rows?.find(r => r.id === p.record!.id) ?? null : null;
     const schema = editSchema(p.base);
     const hiddenTables = schema ? Object.values(schema).filter(x => !p.base.getTableByIdIfExists(x.id)).map(x => x.name) : [];
@@ -155,6 +215,7 @@ function Body(p: StatusPanelProps & {rows: ConfigRow[] | null; hasExtField?: boo
                             {p.variantRecord ? ' (+ שורת Variant)' : ''} · סטטוס <code>{p.status}</code> · שורות בטבלה: {sum ? sum.count : '…'}
                             {p.hasExtField === false && <span className="csfst-bad"> · השדה Extension לא מופעל לאלמנט</span>}
                             {!p.record && sum && <NoRow sum={sum} slug={p.slug} hasExt={p.hasExtField} hasVar={p.hasVariantField} extName={p.extFieldName} />}
+                            {pick && <SeenRows pick={pick} usedId={p.record?.id ?? null} variantId={p.variantRecord?.id ?? null} />}
                         </div>
                     )}
                     {t && (
@@ -292,6 +353,7 @@ const CSS = `
 .csfst * { box-sizing:border-box; }
 .csfst-norow { margin:4px 0 2px; padding:6px 8px; background:#fbf6ec; border:1px dashed #e0c9a0; border-radius:8px; }
 .csfst-dim { color:#7a7368; font-size:11.5px; }
+.csfst-seen { margin:4px 0 2px; } .csfst-seen table { border-collapse:collapse; width:100%; font-size:11.5px; } .csfst-seen td, .csfst-seen th { border-bottom:1px solid #eee5d6; padding:2px 6px; text-align:right; } .csfst-seen tr.csfst-used td { background:#eef7ee; font-weight:600; }
 .csfst-h { display:block; width:100%; text-align:right; font:inherit; font-weight:700; color:inherit; background:#f6f3ee; border:0;
   border-radius:10px 10px 0 0; padding:6px 12px; cursor:pointer; }
 .csfst-b { padding:8px 12px 10px; }

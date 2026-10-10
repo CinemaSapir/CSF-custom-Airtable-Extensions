@@ -109,7 +109,11 @@ if (QS.has('crowd')) {
 }
 // v0.2.10: ?cfgkey=new → Extension «timeline-festival-days» rows; =mid → «timeline»; default = the old program-by-day [timeline]
 const CK = QS.get('cfgkey') ?? 'old';
-const EXT = CK === 'new' ? 'timeline-festival-days' : CK === 'mid' ? 'timeline' : 'program-by-day';
+// v0.2.11: =varonly → the only timeline row has Variant «timeline» left over; =hidext → the Extension field is hidden on the element
+// (rows matched by Display_Name / GitHub_URL); both add the 5 other extensions' rows (6 rows, like PROD)
+const EXT = CK === 'new' || CK === 'varonly' || CK === 'hidext' ? 'timeline-festival-days' : CK === 'mid' ? 'timeline' : 'program-by-day';
+const SIX = CK === 'varonly' || CK === 'hidext';
+const OTHER_ROWS = ['countdown-homescreen', 'lists-ui', 'people-roles', 'bulk-sheet', 'hospitality'].map((e, n) => ({id: `recCfgOther${n}`, cells: {Extension: e, Variant: '', Display_Name: `שורה ${e}`, GitHub_URL: `https://github.com/csf-demo/CSF-custom-Airtable-Extensions/tree/main/${e}`}}));
 // v0.2.9: ?cfgmap=1 adds an Extension_Config table (default row with Mapping_Image + GitHub_URL, empty «timeline» Variant row →
 // the mapping panel falls back to the default row). ?mf=0 → the two fields are not enabled on the element. Other runs: unchanged.
 const cfgJ: TableJ[] = QS.get('cfgmap')
@@ -118,7 +122,9 @@ const cfgJ: TableJ[] = QS.get('cfgmap')
               id: 'tblEXTCONFIG0001',
               name: 'Extension_Config',
               fields: [
-                  {id: 'fldCfgExt', name: 'Extension', type: 'singleLineText'},
+                  {id: 'fldCfgName', name: 'Name', type: 'singleLineText'},
+                  ...(CK === 'hidext' ? [] : [{id: 'fldCfgExt', name: 'Extension', type: 'singleLineText'}]),
+                  {id: 'fldCfgDisp', name: 'Display_Name', type: 'singleLineText'},
                   {id: 'fldCfgVar', name: 'Variant', type: 'singleLineText'},
                   {id: 'fldCfgTitle', name: 'Title', type: 'singleLineText'},
                   {id: 'fldCfgOL6', name: 'Option_List_6', type: 'multilineText'},
@@ -134,12 +140,14 @@ const cfgJ: TableJ[] = QS.get('cfgmap')
                       id: 'recCfgDefault',
                       cells: {
                           Extension: EXT,
-                          Variant: '',
+                          Variant: CK === 'varonly' ? 'timeline' : '',
+                          Display_Name: 'טיימליין ימים',
                           Attachment_Mapping_Image: [{id: 'attTL1', url: 'http://127.0.0.1:8765/timeline-map.png', filename: 'timeline-v0.2.7-config-map.png', type: 'image/png', thumbnails: {large: {url: 'http://127.0.0.1:8765/timeline-map-large.png'}}}],
                           GitHub_URL: 'https://github.com/csf-demo/CSF-custom-Airtable-Extensions/tree/main/timeline-festival-days',
                       },
                   },
                   ...(CK === 'old' ? [{id: 'recCfgTimeline', cells: {Extension: 'program-by-day', Variant: 'timeline'}}] : []),
+                  ...(SIX ? OTHER_ROWS : []),
               ],
           },
       ]

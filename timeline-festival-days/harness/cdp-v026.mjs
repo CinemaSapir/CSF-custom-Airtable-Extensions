@@ -45,7 +45,7 @@ try {
     await b.go(CROWD);
     await sleep(900);
     await setXs(true);
-    const L = await b.js(`[...document.querySelectorAll('.ev .lens')].map(l=>{const n=l.querySelector('.bn');const ev=l.closest('.ev');const cs=getComputedStyle(n);return {t:l.textContent,name:ev.querySelector(':scope>b').textContent,col:ev.closest('.col')?.dataset.t,v:l.classList.contains('vert'),wm:cs.writingMode,fs:parseFloat(cs.fontSize),clip:l.classList.contains('clip'),title:l.title,over:n.scrollHeight>n.clientHeight+2||n.scrollWidth>n.clientWidth+2,lanes:Math.round(ev.parentElement.getBoundingClientRect().width/ev.getBoundingClientRect().width)}})`);
+    const L = await b.js(`[...document.querySelectorAll('.ev .lens')].map(l=>{const n=l.querySelector('.bn');const ev=l.closest('.ev');const cs=getComputedStyle(n);return {t:l.textContent,name:ev.querySelector(':scope>.evt>b').textContent,col:ev.closest('.col')?.dataset.t,v:l.classList.contains('vert'),wm:cs.writingMode,fs:parseFloat(cs.fontSize),clip:l.classList.contains('clip'),title:l.title,over:n.scrollHeight>n.clientHeight+2||n.scrollWidth>n.clientWidth+2,lanes:Math.round(ev.parentElement.getBoundingClientRect().width/ev.getBoundingClientRect().width)}})`);
     check('1: band shows card names (≥ 3 lenses in the crowded slice)', L.length >= 3, L.length);
     check('1: inside the band ONLY the record name — no time', L.every(x => x.t.trim() === x.name.trim() && !/\d{1,2}:\d\d/.test(x.t)), L.map(x => x.t));
     check('1: crowded (overlapping) cards → vertical writing-mode', L.filter(x => x.col === 'Slots_Events' && x.lanes > 1).length >= 2 && L.filter(x => x.col === 'Slots_Events' && x.lanes > 1).every(x => x.v && x.wm === 'vertical-rl'), L);
@@ -69,33 +69,30 @@ try {
     const hdr = async () =>
         b.js(`[...document.querySelectorAll('.cols>div[data-t]:not(.cz)')].map(h=>{const cs=[...h.querySelectorAll('.hd2,.cf2,.sh,.cm2,.cx')];const v=cs.filter(e=>e.offsetWidth>0);const r=v.map(e=>e.getBoundingClientRect());const g=h.querySelector('.hgrp');return {t:h.dataset.t,ad:h.classList.contains('adonly'),dom:cs.map(e=>e.className.split(' ')[0]),vis:v.map(e=>e.className.split(' ')[0]),rtl:r.every((q,i)=>i===0||q.right<=r[i-1].right+0.5),inGrp:[...g.children].map(e=>e.className.split(' ')[0]).join(),adj:(()=>{const m=h.querySelector('.cm2').getBoundingClientRect(),x=h.querySelector('.cx').getBoundingClientRect();return Math.abs(m.left-x.right)})(),hd2R:Math.round(h.getBoundingClientRect().right-h.querySelector('.hd2').getBoundingClientRect().right),dis:[...h.querySelectorAll('[aria-disabled=true]')].map(e=>[e.className.split(' ')[0],e.title]),name:h.querySelector('.nmh').scrollWidth<=h.querySelector('.nmh').clientWidth+1}})`);
     // scroll to the day's all-day row so all-day-only columns (Tasks…) open at the all-day width
-    await b.js(`(()=>{const c=[...document.querySelectorAll('.canvas .col[data-t="Tasks"] .chip')].find(e=>/משובי קהל \\(1/.test(e.textContent));document.querySelector('.vp').scrollTop=parseFloat(c.style.top)-120})()`);
+    await b.js(`document.querySelector('.vp').scrollTop=${await b.js(`(()=>{const st=document.querySelector('.vp').scrollTop;const c=[...document.querySelectorAll('.canvas .col[data-t="Social Posts"] .chip,.canvas .col[data-t="Booking Resources"] .chip')].filter(e=>parseFloat(e.style.top)<st).sort((a,b)=>parseFloat(b.style.top)-parseFloat(a.style.top))[0];return c?parseFloat(c.style.top):0})()`)}-120`); // v0.2.11: Tasks removed
     await sleep(600);
-    const want = 'hd2,cf2,sh,cm2,cx';
+    const want = 'hd2,cf2,cm2,cx'; // v0.2.11: ⇤ removed, ✕ shrinks
     const H1 = await hdr();
     check('10:41: open columns (incl. all-day-only) carry the same 5 controls, visible, same order', H1.length >= 5 && H1.every(x => x.dom.join() === want && x.vis.join() === want && x.rtl), H1.filter(x => x.vis.join() !== want || !x.rtl));
     check('10:41: … an all-day-only column is among them', H1.some(x => x.ad), H1.map(x => [x.t, x.ad]));
-    check('2: ⋯ sits right next to ✕ in one control group (⇤ ⋯ ✕)', H1.every(x => x.inGrp === 'sh,cm2,cx' && x.adj <= 2), H1.map(x => [x.t, x.inGrp, x.adj]));
+    check('2: ⋯ sits right next to ✕ in one control group (⋯ ✕)', H1.every(x => x.inGrp === 'cm2,cx' && x.adj <= 2), H1.map(x => [x.t, x.inGrp, x.adj]));
     check('10:41: ⠿ at the far right of every tab', H1.every(x => x.hd2R >= 0 && x.hd2R <= 8), H1.map(x => x.hd2R));
     check('header: the table name is not truncated (two-row tab)', H1.every(x => x.name), H1.filter(x => !x.name).map(x => x.t));
     // expand every strip → all 13 tables
     await b.js(`document.querySelectorAll('.tog')[0].click()`);
     await sleep(700);
     const H13 = await hdr();
-    check('10:41: all 13 table columns → identical 5 controls in the same order', H13.length === 13 && H13.every(x => x.vis.join() === want && x.rtl), {n: H13.length, bad: H13.filter(x => x.vis.join() !== want || !x.rtl)});
+    check('10:41: all 7 table columns (v0.2.11) → identical 4 controls in the same order', H13.length === 7 && H13.every(x => x.vis.join() === want && x.rtl), {n: H13.length, bad: H13.filter(x => x.vis.join() !== want || !x.rtl)});
     check('10:41: a control that can\'t act is shown disabled with a reason (never hidden)', H13.every(x => x.dis.every(([, t]) => t && t.length > 10)), H13.map(x => [x.t, x.dis]));
     if (shots) await b.shot(resolve(EV, 'ui-v026-header-controls.png'), {x: 0, y: (await b.js(`document.querySelector('.cols').getBoundingClientRect().top`)) - 4, width: 1280, height: 56, scale: 2});
-    // ⇤ shrinks to a strip, ✕ hides
+    // v0.2.11 (the owner 17:01): ✕ shrinks to a strip (⇤ gone); «תחומים» is the way to hide a table
     const t0 = H13[1].t;
-    await b.clickSel(`.cols>div[data-t="${t0}"] .sh`);
+    await b.clickSel(`.cols>div[data-t="${t0}"] .cx`);
     await sleep(500);
-    check('⇤ shrinks the column to a strip on the left', await b.js(`document.querySelector('.cols>div[data-t="${t0}"]').classList.contains('cz')`));
+    check('✕ shrinks the column to a strip on the left', await b.js(`document.querySelector('.cols>div[data-t="${t0}"]').classList.contains('cz')`));
     await b.clickSel(`.cols>div[data-t="${t0}"]`);
     await sleep(500);
-    const t1 = H13[2].t;
-    await b.clickSel(`.cols>div[data-t="${t1}"] .cx`);
-    await sleep(500);
-    check('✕ hides the column (13 → 12, restorable from «תחומים»)', !(await b.js(`!!document.querySelector('.cols>div[data-t="${t1}"]')`)) && (await b.js(`document.querySelectorAll('.cols>div[data-t]').length`)) === 12);
+    check('… and a click on the strip opens it again', !(await b.js(`document.querySelector('.cols>div[data-t="${t0}"]').classList.contains('cz')`)));
 
     // ---------------- 10:42: window pills ▾ · ⇤ · ✕
     await b.go(CROWD);

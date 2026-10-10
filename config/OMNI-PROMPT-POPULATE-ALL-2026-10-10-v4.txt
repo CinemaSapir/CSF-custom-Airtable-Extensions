@@ -73,7 +73,7 @@ When done, reply with, for each record above:
 - every field you could not find or could not write exactly (field + what happened).
 Touch nothing else in the base and do not "fix" anything else.
 
-=== EXTENSION_CONFIG POPULATE — PART 2 of 6: Timeline «טיימליין ימים» v0.2.10 (timeline-festival-days) ===
+=== EXTENSION_CONFIG POPULATE — PART 2 of 6: Timeline «טיימליין ימים» v0.2.11 (timeline-festival-days) ===
 Paste this part on its own into Omni (Airtable AI) on PROD. Parts can be pasted in any order; each part is self-contained.
 
 Work ONLY in the table Extension_Config of this base. Do not create, rename, delete or change any table, field, view, automation, interface, or any record in any other table. Never delete a record. Never create a field: if a field named below does not exist, skip it and list it in your reply.
@@ -95,7 +95,7 @@ HOW TO WRITE THE VALUES:
 - Date_N fields use the Asia/Jerusalem time zone; enter the Israel time given and check the cell shows it.
 - Duration_N is h:mm. Number_N is a plain number.
 
---- RECORD: Timeline «טיימליין ימים» v0.2.10 (timeline-festival-days) ---
+--- RECORD: Timeline «טיימליין ימים» v0.2.11 (timeline-festival-days) ---
 - Extension: timeline-festival-days
 - Variant: (empty)
 (Renamed key: if NO record has Extension timeline-festival-days, but one record has Extension "timeline" with an empty Variant, or Extension "program-by-day" with Variant "timeline", UPDATE that one record instead of creating a new one: set its Extension to timeline-festival-days and empty its Variant, then fill the empty cells below. Do not delete any record; reply with the ids of any remaining program-by-day records so they can be removed by hand.)
@@ -145,9 +145,6 @@ HOW TO WRITE THE VALUES:
 - Filter_7: Slots_Events.Type
 - Filter_Operator_7: is not
 - Filter_Value_7: למחיקה|לא מוגדר / לא לשבץ|לא מוגדר|לא לשבץ
-- Filter_9: Tasks.Status
-- Filter_Operator_9: is not
-- Filter_Value_9: בוטלה|הועברה לאחר
 - Dropdown_Label_3: רזולוציה
 - Dropdown_Default_3: 360
 - Option_List_3: (5 lines, one per line, exactly as below)
@@ -156,20 +153,14 @@ HOW TO WRITE THE VALUES:
       360 | 6 שעות
       720 | 12 שעות
       1440 | יממה
-- Option_List_6: (13 lines, one per line, exactly as below)
+- Option_List_6: (7 lines, one per line, exactly as below)
       Slots_Events | משבצות | blueLight2 |
       Staffing | צוות | tealLight2 |
       Invitations | הזמנות | tealLight1 |
       Itinerary | מסלולים | purpleLight2 |
       Lodging | לינה | purpleLight2 |
       Booking Resources | ציוד | purpleLight1 |
-      Tasks | משימות | greenLight1 |
       Social Posts | סושיאל | greenLight2 |
-      Petty Cash | קופה קטנה | yellowLight2 |
-      Requests | רכש | orangeLight2 |
-      transactions | תשלומים | yellowLight1 |
-      Notebook | פגישות | grayLight2 |
-      Approvals | אישורים | orangeLight1 |
 - Option_List_7: (6 lines, one per line, exactly as below)
       Todo | לביצוע
       לא התחילה | לביצוע
@@ -194,7 +185,7 @@ HOW TO WRITE THE VALUES:
 - Toggle_Label_2: כווץ שעות ריקות
 - Toggle_Label_3: חתך רוחב
 - Notes: שורה אחת לטיימליין (Extension = timeline-festival-days, Variant ריק). מולא 2026-10-10 מברירות המחדל בקוד של Timeline (צבעי SDK לפי PALETTE v0.2.3). תא ריק = ברירת המחדל בקוד.
-(71 cells besides Extension and Variant.)
+(68 cells besides Extension and Variant.)
 (Attachment_Mapping_Image — by hand, not by Omni: timeline-festival-days-v0210-config-map.png)
 
 When done, reply with, for each record above:

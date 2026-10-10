@@ -106,9 +106,11 @@ export type TimelineProps = {
     writer?: Writer;
     /** Festival Days record id per date (auto-link on create) */
     dayIdByDate?: {[date: string]: string};
+    /** v0.2.11: how many records the user hid with 👁 (the «מצב חיבור» panel shows it) */
+    onHiddenCount?: (n: number) => void;
 };
 
-type Persist = {res?: number; collapse?: boolean; compress?: boolean; xs?: boolean; shown?: string[]; closed?: string[]; order?: string[]; widths?: {[t: string]: number}; /** v0.2.4: tables switched off in the cross-section */ wOff?: string[]; /** v0.2.4: per-table values picked for the cross-section */ wPick?: {[t: string]: string[]}; /** v0.2.5: per-column filters (user choice; absent table = right-pane default) */ colF?: ColFilters; /** v0.2.6: the user toggled «כווץ שעות ריקות» themselves */ compressUser?: boolean; /** v0.2.6: tables hidden from the window */ wHide?: string[]};
+type Persist = {res?: number; collapse?: boolean; compress?: boolean; xs?: boolean; shown?: string[]; closed?: string[]; order?: string[]; widths?: {[t: string]: number}; /** v0.2.4: tables switched off in the cross-section */ wOff?: string[]; /** v0.2.4: per-table values picked for the cross-section */ wPick?: {[t: string]: string[]}; /** v0.2.5: per-column filters (user choice; absent table = right-pane default) */ colF?: ColFilters; /** v0.2.6: the user toggled «כווץ שעות ריקות» themselves */ compressUser?: boolean; /** v0.2.6: tables hidden from the window */ wHide?: string[]; /** v0.2.11: records hidden with 👁 (ids) */ hid?: string[]; /** v0.2.11 window filter menu: only what runs at the centre time · hide cancelled */ wNow?: boolean; wNoCancel?: boolean};
 const LS = 'csf.timeline.v1.';
 function loadPersist(key: string): Persist {
     try {
@@ -125,6 +127,24 @@ function savePersist(key: string, p: Persist) {
         /* storage blocked → per-session only */
     }
 }
+/** v0.2.11: cross-section cards per row (was 3) */
+export const WIN_COLS = 6;
+/** v0.2.11: 👁 = hide this record (per user) */
+const Eye = ({id, name, onHide}: {id: string; name: string; onHide: (id: string) => void}) => (
+    <a
+        className="eye"
+        role="button"
+        aria-label={`הסתרת «${name}»`}
+        title={`הסתרת «${name}» (נשמר לך · «נקה» / «נקה הכל» מחזירים)`}
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => {
+            e.stopPropagation();
+            onHide(id);
+        }}
+    >
+        👁
+    </a>
+);
 const Rng = ({a, b}: {a: number; b: number}) => <bdi dir="ltr">{`${fmt(a)}–${fmt(b)}`}</bdi>;
 
 export function Timeline(p: TimelineProps) {
@@ -186,6 +206,10 @@ export function Timeline(p: TimelineProps) {
     const [wOff, setWOff] = useState<Set<string>>(() => normalizeOff(saved.wOff, allT));
     // v0.2.6 (the owner 10:42): window pills get ⇤ (shrink to a strip at the far left = wOff) AND ✕ (hide from the window = wHide)
     const [wHide, setWHide] = useState<Set<string>>(() => normalizeOff(saved.wHide, allT));
+    // v0.2.11 (the owner 17:01): 👁 next to every title hides that record (timeline + window), saved per user; «נקה» / «נקה הכל» brings them back
+    const [hid, setHid] = useState<Set<string>>(() => new Set(Array.isArray(saved.hid) ? saved.hid.filter((x): x is string => typeof x === 'string') : []));
+    const [wNow, setWNow] = useState<boolean>(() => saved.wNow === true);
+    const [wNoCancel, setWNoCancel] = useState<boolean>(() => saved.wNoCancel === true);
     // v0.2.4 (the owner 09:21): the window's own filters ADD to the timeline's (AND); clearing them = exactly the timeline
     const [wPick, setWPick] = useState<{[t: string]: string[]}>(() =>
         Object.fromEntries(Object.entries(saved.wPick && typeof saved.wPick === 'object' ? saved.wPick : {}).filter(([t, v]) => allT.includes(t) && Array.isArray(v) && v.length).map(([t, v]) => [t, (v as unknown[]).filter((x): x is string => typeof x === 'string')])),
@@ -229,8 +253,8 @@ export function Timeline(p: TimelineProps) {
     const userScrolled = useRef(false);
 
     useEffect(() => {
-        savePersist(p.userKey, {res, collapse: collapseC, compress: compressT, xs, shown: [...shown], closed: [...closed], order, widths: colW, wOff: [...wOff], wHide: [...wHide], wPick, colF, compressUser});
-    }, [p.userKey, res, collapseC, compressT, compressUser, xs, shown, closed, order, colW, wOff, wHide, wPick, colF]);
+        savePersist(p.userKey, {res, collapse: collapseC, compress: compressT, xs, shown: [...shown], closed: [...closed], order, widths: colW, wOff: [...wOff], wHide: [...wHide], wPick, colF, compressUser, hid: [...hid], wNow, wNoCancel});
+    }, [p.userKey, res, collapseC, compressT, compressUser, xs, shown, closed, order, colW, wOff, wHide, wPick, colF, hid, wNow, wNoCancel]);
 
     // search debounce
     useEffect(() => {
@@ -277,7 +301,12 @@ export function Timeline(p: TimelineProps) {
     const canvasRef = useRef<HTMLDivElement>(null);
     const [menuAt, setMenuAt] = useState({x: 0, y: 0});
     const passQ = useCallback((i: Item) => passes(i, F, q, label(i.table)), [F, q, label]);
-    const passT = useCallback((i: Item) => passQ(i) && passCol(i, CF), [passQ, CF]);
+    const passT = useCallback((i: Item) => !hid.has(i.id) && passQ(i) && passCol(i, CF), [passQ, CF, hid]);
+    const hiddenN = useMemo(() => items.filter(i => hid.has(i.id)).length, [items, hid]);
+    const onHiddenCount = p.onHiddenCount;
+    useEffect(() => onHiddenCount?.(hiddenN), [hiddenN, onHiddenCount]);
+    const hideRec = (id: string) => setHid(s => new Set([...s, id]));
+    const unhideRec = (id: string) => setHid(s => new Set([...s].filter(x => x !== id)));
     const filtered = useMemo(() => items.filter(passT), [items, passT]);
     const timed = useMemo(() => filtered.filter(i => i.s !== null && i.e !== null), [filtered]);
     const allday = useMemo(() => filtered.filter(i => i.s === null), [filtered]);
@@ -407,6 +436,7 @@ export function Timeline(p: TimelineProps) {
     };
     const clearF = () => {
         setColF(Object.fromEntries(allT.map(t => [t, {}])));
+        setHid(new Set()); // v0.2.11: reset filters also shows the 👁-hidden records again
         setQIn('');
         setQ('');
     };
@@ -646,7 +676,7 @@ export function Timeline(p: TimelineProps) {
     };
 
     // ------------------------------------------------ render pieces
-    const anyF = anyFilter(F, q) || Object.keys(CF).length > 0;
+    const anyF = anyFilter(F, q) || Object.keys(CF).length > 0 || hid.size > 0;
     const M = items.filter(i => shown.has(i.table)).length;
     const N = filtered.filter(i => shown.has(i.table)).length;
     const ddCls = (id: string, extra = '') => `dd ${extra} ${openDd === id ? 'open' : ''}`;
@@ -691,9 +721,12 @@ export function Timeline(p: TimelineProps) {
                             style={{top: s.y + 3 + r * 21, borderColor: C(t)}}
                             onClick={() => openRec(t, i.id)}
                         >
-                            {i.name}
-                            {i.part}
-                            {i.sub ? ' · ' + i.sub : ''}
+                            <span className="cn">
+                                {i.name}
+                                {i.part}
+                                {i.sub ? ' · ' + i.sub : ''}
+                            </span>
+                            <Eye id={i.id} name={i.name} onHide={hideRec} />
                         </div>,
                     ),
                 ),
@@ -750,9 +783,13 @@ export function Timeline(p: TimelineProps) {
                     onPointerDown={e => cardDown(e, i, (e.target as HTMLElement).classList.contains('rz') ? 'resize' : 'move')}
                     data-id={i.id}
                 >
-                    <b className={`open ${off ? 'pinned' : ''}`} title="פתיחת הרשומה" style={off ? {transform: `translateY(${off}px)`} : undefined}>
-                        {i.name}
-                    </b>
+                    {/* v0.2.11: 👁 sits left of (= after, RTL) the title */}
+                    <span className="evt" style={off ? {transform: `translateY(${off}px)`, position: 'relative', zIndex: 1} : undefined}>
+                        <b className={`open ${off ? 'pinned' : ''}`} title="פתיחת הרשומה">
+                            {i.name}
+                        </b>
+                        <Eye id={i.id} name={i.name} onHide={hideRec} />
+                    </span>
                     <small>
                         <Rng a={i.s as number} b={i.e as number} />
                         {i.inherited ? ' · זמן לפי המשבצת' : ''}
@@ -840,23 +877,28 @@ export function Timeline(p: TimelineProps) {
 
     // window (cross-section)
     const wShown = new Set([...shown].filter(t => !wHide.has(t)));
-    const wpass = (i: Item) => winPass(i, passT, wShown, wOff) && passPicked(i, wPick);
+    const wpass = (i: Item) => winPass(i, passT, wShown, wOff) && passPicked(i, wPick) && (!wNow || ((i.s as number) <= xp.t && (i.e as number) > xp.t)) && (!wNoCancel || i.flag !== 'cancel');
     const wSrc = filtered;
     const hits = windowHits(wSrc, ba, bb, order, i => wpass(i));
     // the pills list what the window can show: timed items in the slice (all-day chips are not window cards)
     const pills = winPills(wSrc.filter(i => i.s !== null && overlaps(i, ba, bb) && passT(i) && passPicked(i, wPick)), order, wShown, wOff, new Set(Object.keys(wPick).filter(t => wPick[t]?.length)));
-    const wAny = pills.some(x => !x.on) || wHide.size > 0 || Object.values(wPick).some(v => v.length);
+    const wAny = pills.some(x => !x.on) || wHide.size > 0 || Object.values(wPick).some(v => v.length) || wNow || wNoCancel || hid.size > 0;
+    const wfN = (wNow ? 1 : 0) + (wNoCancel ? 1 : 0) + wHide.size + [...wOff].filter(t => shown.has(t)).length;
     const clearWin = () => {
         setWOff(new Set());
         setWHide(new Set());
         setWPick({});
+        setWNow(false);
+        setWNoCancel(false);
+        setHid(new Set()); // «נקה הכל» brings back the 👁-hidden records too
     };
     const pickT = openDd?.startsWith('vf:') ? openDd.slice(3) : null;
     const cfT = openDd?.startsWith('cf:') ? openDd.slice(3) : null;
     const canF = (t: string) => colCount(CF[t]) > 0 || items.some(i => i.table === t && (i.hall.length || i.people.length || i.films.length || i.st || (i.fx && Object.keys(i.fx).length)));
     const cfDims = cfT ? colDims(items.filter(i => i.table === cfT), CF[cfT], p.facetLabels, passQ) : [];
     const cfCur = cfDims.find(d => d.key === (cfT && cfDim[cfT])) ?? cfDims.find(d => CF[cfT ?? '']?.[d.key]?.vals.length) ?? cfDims[0];
-    const wRows = winGridRows(p.numbers.maxCards);
+    // v0.2.11 (the owner 17:01): window cards are half as wide (6 per row instead of 3) with a 2-line title
+    const wRows = winGridRows(p.numbers.maxCards, WIN_COLS);
     const maxCards = hits.length > p.numbers.maxCards ? p.numbers.maxCards - 1 : p.numbers.maxCards;
     const wEmpty = xs && hits.length === 0;
     const curMin = xp.t;
@@ -965,6 +1007,11 @@ export function Timeline(p: TimelineProps) {
                     </div>
                 </div>
                 {/* v0.2.5: no facet pills here any more — each column header has its own funnel */}
+                {hiddenN ? (
+                    <span className="hidn num" title="רשומות שהסתרת עם 👁 · «נקה» מחזיר אותן">
+                        👁 {hiddenN} מוסתרות
+                    </span>
+                ) : null}
                 {anyF ? (
                     <a className="clr" onClick={() => clearF()} data-slot="Content_Text_5">
                         {T.Content_Text_5}
@@ -986,12 +1033,13 @@ export function Timeline(p: TimelineProps) {
             {/* ---------------- day banner ---------------- */}
             <div className={`ban ${day ? phase(day.n, fl) : ''}`} style={day ? {background: phaseBg(phase(day.n, fl))} : undefined}>
                 {/* v0.2.4 (the owner 09:16): big day + time in the CENTRE, crimson */}
+                {/* v0.2.11 (the owner 17:01, screenshot arrows): the small date text moves to the right of «יום N · פסטיבל» + time */}
                 <div className="ctr" data-slot="Heading_3 · Date_3 (מרכז · קרימזון)">
+                    <small>{day ? dayBar(day, fl, words).s : ''}</small>
                     <span className="big">{day ? dayBar(day, fl, words).t : ''}</span>
                     <span className="clock num">
                         <bdi dir="ltr">{fmt(curMin)}</bdi>
                     </span>
-                    <small>{day ? dayBar(day, fl, words).s : ''}</small>
                 </div>
                 <div className="sp" />
                 <button className="bb" onClick={doNow} data-slot="Button_Text_1">
@@ -1058,6 +1106,25 @@ export function Timeline(p: TimelineProps) {
                             ))}
                         </span>
                     </span>
+                    {/* v0.2.11 (the owner 17:01): the window's own filter (funnel + options) at the far left of its row */}
+                    <a
+                        className={`wf ${wfN || hiddenN ? 'act' : ''}`}
+                        role="button"
+                        aria-label="סינון החתך"
+                        title="סינון החתך"
+                        data-cm="wf"
+                        onClick={e => {
+                            e.stopPropagation();
+                            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            setMenuAt({x: r.left, y: r.bottom});
+                            setOpenDd(o => (o === 'wf' ? null : 'wf'));
+                        }}
+                    >
+                        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M1.5 2h13l-5 6.2V13l-3 1.5V8.2z" fill={wfN ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                        </svg>
+                        {wfN ? <b className="num">{wfN}</b> : null}
+                    </a>
                     <span className="wemp">
                         {!xs ? '· כבוי · הפעילו כדי לראות מה קורה באמצע המסך' : wEmpty ? (
                             wAny ? (
@@ -1087,6 +1154,7 @@ export function Timeline(p: TimelineProps) {
                                     {i.name}
                                 </span>
                             )}
+                            {i.id && !i.agg ? <Eye id={i.id} name={i.name} onHide={hideRec} /> : null}
                         </div>
                     ))}
                     {hits.length > maxCards ? <div className="wc more">+{hits.length - maxCards} עוד בחתך</div> : null}
@@ -1176,19 +1244,8 @@ export function Timeline(p: TimelineProps) {
                                 }}
                             />
                         ) : null}
-                        {/* v0.2.6: ⇤ (shrink to strip) · ⋯ menu right next to ✕ (hide) — one control group at the end edge, same on every table */}
-                        <span className="hgrp" data-slot={t === tables[0] ? '⇤ · Tab_Label_2 (⋯) · ✕ (קבוצה אחת)' : undefined}>
-                            <a
-                                className="sh"
-                                title={`כיווץ ${HE(t)} לפס בצד שמאל (לחיצה על הפס פותחת)`}
-                                data-slot={t === tables[0] ? 'Toggle_1 (⇤ כיווץ לפס)' : undefined}
-                                onClick={e => {
-                                    e.stopPropagation();
-                                    close(t);
-                                }}
-                            >
-                                ⇤
-                            </a>
+                        {/* v0.2.11 (the owner 17:01): ⋯ menu · ✕ — ✕ now SHRINKS the column to a strip at the left (the ⇤ button is gone); «תחומים» hides a table */}
+                        <span className="hgrp" data-slot={t === tables[0] ? 'Tab_Label_2 (⋯) · ✕ (כיווץ לפס)' : undefined}>
                             <a
                                 className="cm2"
                                 title={T.Tab_Label_2}
@@ -1203,12 +1260,12 @@ export function Timeline(p: TimelineProps) {
                                 ⋯
                             </a>
                             <a
-                                className={`cx ${tables.length > 1 ? '' : 'dis'}`}
-                                aria-disabled={tables.length <= 1}
-                                title={tables.length > 1 ? `הסתרת ${HE(t)} מהתצוגה (מחזירים מ«תחומים»)` : 'זו העמודה האחרונה המוצגת — אי אפשר להסתיר אותה'}
+                                className="cx"
+                                title={`כיווץ ${HE(t)} לפס בצד שמאל (לחיצה על הפס פותחת · הסתרה מלאה: «${T.Content_Text_8 || 'תחומים'}»)`}
+                                data-slot={t === tables[0] ? 'Toggle_1 (✕ כיווץ לפס)' : undefined}
                                 onClick={e => {
                                     e.stopPropagation();
-                                    if (tables.length > 1) setShown(s0 => new Set([...s0].filter(x => x !== t)));
+                                    close(t);
                                 }}
                             >
                                 ✕
@@ -1281,6 +1338,55 @@ export function Timeline(p: TimelineProps) {
                     <bdi dir="ltr">{fmt(curMin)}</bdi>
                 </div>
             </div>
+                {openDd === 'wf' ? (
+                    <div className="hmenu open vmenu wfmenu" data-cm="wf" style={{position: 'fixed', left: Math.max(4, Math.min(menuAt.x, window.innerWidth - 290)), top: menuAt.y + 4}} onClick={e => e.stopPropagation()}>
+                        <small className="vh">סינון החתך · נוסף על הסינון של ציר הזמן</small>
+                        <div className={`tog ${wNow ? 'on' : ''}`} role="switch" aria-checked={wNow} data-o="now" onClick={() => setWNow(v => !v)}>
+                            <span className="sw" />
+                            רק מה שמתרחש בשעה שבמרכז
+                        </div>
+                        <div className={`tog ${wNoCancel ? 'on' : ''}`} role="switch" aria-checked={wNoCancel} data-o="nocancel" onClick={() => setWNoCancel(v => !v)}>
+                            <span className="sw" />
+                            בלי בוטלים
+                        </div>
+                        <small className="vh">טבלאות בחתך</small>
+                        {tables.map(t => {
+                            const on = !wOff.has(t) && !wHide.has(t);
+                            return (
+                                <div
+                                    key={t}
+                                    className={`it ${on ? 'on' : ''}`}
+                                    data-t={t}
+                                    onClick={() => {
+                                        if (on) setWOff(o => new Set([...o, t]));
+                                        else {
+                                            setWOff(o => new Set([...o].filter(x => x !== t)));
+                                            setWHide(o => new Set([...o].filter(x => x !== t)));
+                                        }
+                                    }}
+                                >
+                                    <span className="ck">{on ? '✓' : ''}</span>
+                                    <i style={{background: C(t)}} />
+                                    {HE(t)}
+                                </div>
+                            );
+                        })}
+                        <small className="vh" data-o="hidden">👁 מוסתרות: {hiddenN}</small>
+                        {items
+                            .filter(i => hid.has(i.id))
+                            .slice(0, 12)
+                            .map(i => (
+                                <div key={i.id} className="it hidr" data-id={i.id} title="הצגה מחדש" onClick={() => unhideRec(i.id)}>
+                                    <span className="ck">↺</span>
+                                    <i style={{background: C(i.table)}} />
+                                    {i.name}
+                                </div>
+                            ))}
+                        <div className="act">
+                            <span data-o="clearall" onClick={() => { clearWin(); setOpenDd(null); }}>נקה הכל</span>
+                        </div>
+                    </div>
+                ) : null}
                 {cfT ? (
                     <div className="hmenu open vmenu cfmenu" data-cm={'cf:' + cfT} style={{position: 'fixed', left: Math.max(4, Math.min(menuAt.x - 200, window.innerWidth - 270)), top: menuAt.y + 4}} onClick={e => e.stopPropagation()}>
                         <small className="vh">

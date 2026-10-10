@@ -45,11 +45,12 @@ test('compress: defaults ON (both toggles); a real user choice is kept, an old s
     assert.equal(keptCompress({compress: false, compressUser: true}, true), false); // chosen OFF since v0.2.6
     assert.equal(keptCompress({compress: false}, false), false); // Extension_Config says OFF
 });
-test('header: identical 5 controls in one order on every table: ⠿ · funnel · ⇤ · ⋯ · ✕ (⋯ next to ✕)', () => {
+test('header: identical controls in one order on every table: ⠿ · funnel · ⋯ · ✕ (v0.2.11: ⇤ gone, ✕ shrinks)', () => {
     const src = readFileSync('frontend/Timeline.tsx', 'utf8');
     const h = src.slice(src.indexOf('{/* ---------------- column headers'), src.indexOf('{colDrag && colDrag.lineX'));
     const at = (re: RegExp) => h.search(re);
-    const ix = [at(/className="hd2"/), at(/className=\{`cf2 /), at(/className="sh"/), at(/className="cm2"/), at(/className=\{`cx /)];
+    const ix = [at(/className="hd2"/), at(/className=\{`cf2 /), at(/className="cm2"/), at(/className="cx"/)];
+    assert.equal(at(/className="sh"/), -1, 'v0.2.11: no ⇤ in the column header');
     assert.ok(ix.every(x => x > 0), JSON.stringify(ix));
     assert.deepEqual([...ix].sort((a, b) => a - b), ix);
     assert.ok(!/t === 'Lodging' \? \(\s*<a/.test(h), 'no table-specific controls');

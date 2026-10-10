@@ -1,4 +1,4 @@
-import {createContext, useContext, useMemo} from 'react';
+import {createContext, useContext, useMemo, useState} from 'react';
 import {colorUtils, expandRecord, initializeBlock, useBase, useCustomProperties, useGlobalConfig, useRecords, useSession} from '@airtable/blocks/interface/ui';
 import type {Base, Field, Record as AirtableRecord, Table} from '@airtable/blocks/interface/models';
 import pkg from '../package.json';
@@ -8,12 +8,14 @@ import {Timeline, type ColumnDef} from './Timeline';
 import {StatusPanel} from './StatusPanel';
 import {MappingPanel} from './MappingPanel';
 import {ConfigEditor} from './ConfigEdit';
-import {EDIT_TOGGLE_KEY, MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, editToggleProperty, isEditOn, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
+import {EDIT_TOGGLE_KEY, MAPPING_TOGGLE_KEY, looseField, STATUS_TOGGLE_KEY, editToggleProperty, isEditOn, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
 import type {Writer} from './EditUi';
 import {mapFields, type FieldLike} from './logic/edit';
 import {FILTER_SLOTS, buildDays, passCol, distinctVals, filterKind, israelParts, parseOp, parseRef, parseRes, pickRes, splitVals, tzModeOf, type Day, type FilterOp, type ColFilters} from './logic/core';
 import {names as namesOf, readItems, type RecView, type TableInput} from './logic/read';
-import {FESTIVAL_DAY_FIELDS, LOOKUP_TABLES, TABLE_SPECS, type TableSpec} from './logic/tables';
+import {FESTIVAL_DAY_FIELDS, LOOKUP_TABLES, REMOVED_TABLES, TABLE_SPECS, type TableSpec} from './logic/tables';
+/** v0.2.11: Option_List_6 rows naming a removed table (Tasks, Petty Cash, …) are dropped silently — no notice, no ✗ */
+const isRemoved = (v: string) => REMOVED_TABLES.some(t => looseName(t) === looseName(v));
 
 /** v0.2.3: every colour comes from the SDK palette at runtime (no copied hex table) */
 const hexForColor = (name: string): string | null => (name ? colorUtils.getHexForColor(name) : null);
@@ -83,8 +85,10 @@ function Root() {
 /** reads only the Extension / Variant cells of the config table to pick the row key (read-only) */
 function KeyFromRows(p: {table: Table; paneVariant: string; cp: {[k: string]: unknown}; configTable: Table | null}) {
     const recs = useRecords(p.table);
-    const ext = p.table.getFieldByNameIfExists('Extension');
-    const vf = p.table.getFieldByNameIfExists('Variant');
+    // v0.2.11: field names matched loosely (shared looseField); a hidden Extension field no longer blocks the match — hook v4 scores
+    // the primary field / Display_Name / GitHub_URL folder instead
+    const ext = looseField(p.table.fields, 'Extension');
+    const vf = looseField(p.table.fields, 'Variant');
     const rows = recs && ext ? recs.map(r => ({extension: r.getCellValueAsString(ext), variant: vf ? r.getCellValueAsString(vf) : ''})) : null;
     const k = pickConfigKey(rows, p.paneVariant);
     return <Configured k={k} cp={p.cp} configTable={p.configTable} />;
@@ -97,7 +101,7 @@ function Configured({k, cp, configTable}: {k: ConfigKey; cp: {[k: string]: unkno
         <CpCtx.Provider value={cp as {[k: string]: unknown}}>
         <ExtensionConfigProvider
             base={base}
-            configTable={configTable}
+            configTable={configTable ?? undefined}
             slug={k.slug}
             variant={variant}
             version={VERSION}
@@ -129,7 +133,7 @@ function ChainStep({list, i, acc, done}: {list: Array<{key: string; table: Table
 function Loader({variant, paneConfigTable}: {variant: string; paneConfigTable: Table | null}) {
     const base = useBase();
     const cfg = useExtensionConfig();
-    const tableRows = cfg.options('Option_List_6');
+    const tableRows = cfg.options('Option_List_6').filter(r => !isRemoved(r.value));
     const found: Array<{key: string; table: Table}> = [];
     const notices: string[] = [];
     for (const row of tableRows) {
@@ -198,6 +202,7 @@ const REQUIRED: {[time in TableSpec['time']]: Array<keyof TableSpec>} = {own: ['
 
 type StatusCtx = {variant: string; paneConfigTable: Table | null; missingTables: string[]; fdTable: Table | null; wanted: string[]};
 function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: string[]; hasDays: boolean; st: StatusCtx}) {
+    const [hiddenN, setHiddenN] = useState(0); // v0.2.11: 👁-hidden records (from the Timeline) → «מצב חיבור»
     const ckey = useConfigKey();
     const cfg = useExtensionConfig();
     const session = useSession();
@@ -234,7 +239,6 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
     const lodge = {in: cfg.text('Table_Heading_2') || '15:00', out: cfg.text('Table_Heading_3') || '11:00'};
     const split = (s: string) => s.split('|').map(x => x.trim()).filter(Boolean);
     const excludeTypes = split(cfg.raw('Filter_Value_7'));
-    const excludeTasks = split(cfg.raw('Filter_Value_9'));
 
     const tableData = loaded.filter(l => l.key !== '__days');
     for (const l of tableData) {
@@ -256,7 +260,6 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
         lodge,
         statusLabel: raw => optionLabel(statusRows, raw),
         excludeTypes,
-        excludeStatus: {Tasks: excludeTasks},
     });
 
     // ---- v0.2.4 per-table filters: right pane first, else Extension_Config Filter_N ('Table.Field' + Filter_Operator_N + Filter_Value_N)
@@ -330,7 +333,7 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
     }
 
     const foundKeys = new Set(tableData.map(l => l.key));
-    const columns: ColumnDef[] = cfg.options('Option_List_6').map(r => {
+    const columns: ColumnDef[] = cfg.options('Option_List_6').filter(r => !isRemoved(r.value)).map(r => {
         const sp = TABLE_SPECS.find(s => looseName(s.key) === looseName(r.value));
         return {key: sp?.key ?? r.value, label: r.label || r.value, color: r.color, available: !!sp && foundKeys.has(sp.key)};
     });
@@ -416,7 +419,7 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
             facetLabels={{hall: cfg.raw('Filter_Label_1') || 'מיקום', person: cfg.raw('Filter_Label_2') || 'אדם', film: cfg.raw('Filter_Label_3') || 'סרט', status: cfg.raw('Filter_Label_4') || 'סטטוס'}}
             quickTimes={cfg.options('Option_List_8').map(r => ({value: r.value, label: r.label}))}
             lodge={lodge}
-            numbers={{bandFrac: num('Number_1', 0.2), maxCards: Math.max(2, Math.round(num('Number_2', 6))), strip: num('Number_3', 30), festLen: Math.max(1, Math.round(num('Number_4', 7)))}}
+            numbers={{bandFrac: num('Number_1', 0.2), maxCards: Math.max(2, Math.round(num('Number_2', 12))), strip: num('Number_3', 30), festLen: Math.max(1, Math.round(num('Number_4', 7)))}}
             phaseColors={{fest: cfg.raw('Color_1') || 'grayLight2', prep: cfg.raw('Color_2') || 'cyanLight2', wrap: cfg.raw('Color_3') || 'yellowLight2'}}
             colorHex={hexForColor}
             version={VERSION}
@@ -429,8 +432,9 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
             dayIdByDate={dayIdByDate}
             tableFilters={Object.fromEntries(Object.entries(tableFilters).map(([t, v]) => [t, {field: v.field, options: v.options}]))}
             colDefaults={colDefaults}
+            onHiddenCount={setHiddenN}
         />
-        <TimelineStatus st={st} loaded={tableData} items={res.items} tableFilters={tableFilters} colDefaults={colDefaults} />
+        <TimelineStatus st={st} loaded={tableData} items={res.items} tableFilters={tableFilters} colDefaults={colDefaults} hiddenN={hiddenN} />
         </>
     );
 }
@@ -443,6 +447,8 @@ function TimelineStatus(props: {
     items: ReadonlyArray<{table: string}>;
     tableFilters: {[t: string]: {field: string; op: string; values: string[]; source: string}};
     colDefaults: ColFilters;
+    /** v0.2.11: records the user hid with 👁 */
+    hiddenN?: number;
 }) {
     const ckey = useConfigKey();
     const {st, loaded, items, tableFilters, colDefaults} = props;
@@ -509,7 +515,7 @@ function TimelineStatus(props: {
                 filters={filters}
                 filtersTitle="סינון לפי טבלה (חלונית ימנית → Filter_N)"
                 extraTitle="הערה"
-                notes={[`טבלאות מבוקשות (Option_List_6): ${st.wanted.join(' · ') || '—'}`]}
+                notes={[`טבלאות מבוקשות (Option_List_6): ${st.wanted.join(' · ') || '—'}`, `👁 רשומות מוסתרות (למשתמש הזה): ${props.hiddenN ?? 0}${props.hiddenN ? ' · «נקה» / «נקה הכל» מחזירים' : ''}`]}
                 version={VERSION}
             />
             {/* v0.2.9: Attachment_Mapping_Image of the matched row (Variant → default) + GitHub_URL, same dock, read-only */}

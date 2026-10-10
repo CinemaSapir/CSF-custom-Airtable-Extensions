@@ -492,7 +492,7 @@ html,body,.tl{background:#fff;color:var(--sdk-grayDark1)}
 .toast{background:var(--sdk-grayDark1)} .toast.undo .ubar{background:var(--sdk-grayLight1)}
 .vp{scrollbar-color:var(--sdk-grayLight1) #fff} .vp::-webkit-scrollbar-track{background:#fff} .vp::-webkit-scrollbar-thumb{background:var(--sdk-grayLight1);border-color:#fff}
 /* v0.2.3: the lens owns the card head when the band reaches the title → the title shows once */
-.ev.lenshead>b,.ev.lenshead>small{visibility:hidden}
+.ev.lenshead>b,.ev.lenshead>.evt,.ev.lenshead>small{visibility:hidden}
 .ev .lens.head{box-shadow:inset 0 0 0 1px var(--sdk-redLight1),0 2px 6px -2px rgba(0,0,0,.18)}
 /* v0.2.3: neutral hover on every control (palette B: tint grayLight2, border grayLight1) */
 .dd>button:hover,.dd.res>button:hover,.dd.f.act>button:hover,.tog:hover,.wfb:hover,.lnk:not(.on):hover,.jumpc button:hover{background:var(--sdk-grayLight2);border-color:var(--sdk-grayLight1)}
@@ -606,4 +606,38 @@ html,body,.tl{background:#fff;color:var(--sdk-grayDark1)}
 .cols>div:not(.cz) .hgrp{top:auto;bottom:3px;transform:none;left:4px}
 .cols>div:not(.cz) .ldf{position:absolute;bottom:5px;right:40px;left:62px;transform:none;overflow:hidden;text-overflow:ellipsis;text-align:center;font-size:9.5px;padding:0 4px}
 .cols>div.adonly{padding-inline-start:22px}
+/* ---- v0.2.11 (the owner 17:01) ---- */
+/* 1: the header ✕ shrinks to a strip (⇤ gone) */
+.cols>div:not(.cz) .hgrp .sh{display:none}
+/* 3: window cards half as wide (6 per row), 2-line title */
+.tl{--wcH:40px}
+.wg{grid-template-columns:repeat(6,minmax(0,1fr))}
+.wc{align-items:flex-start;padding:3px 6px;gap:5px}
+.wc .tg{font-size:9px;padding:0 4px;margin-top:2px}
+.wc .nm{flex:0 1 auto;white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:12.5px;line-height:1.22;word-break:break-word}
+.wc.more{align-items:center}
+/* 5: 👁 left of (= after, RTL) every title; hover shows it clearly */
+.eye{flex:none;font-size:11px;line-height:1;cursor:pointer;opacity:.45;padding:1px 2px;border-radius:4px;user-select:none;filter:grayscale(1)}
+.eye:hover{opacity:1;background:var(--sdk-grayLight2);filter:none}
+.ev .evt{display:flex;align-items:flex-start;gap:3px;min-width:0}
+.ev .evt>b{min-width:0;flex:0 1 auto}
+.ev .evt .eye{margin-top:1px}
+.chip{display:flex;align-items:center;gap:3px}
+.chip .cn{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hidn{font-size:12.5px;color:var(--sdk-grayDark1);background:var(--sdk-grayLight2);border-radius:10px;padding:2px 8px;white-space:nowrap}
+/* 4: the window's own funnel at the far left of its row */
+.wh .wf{order:99;margin-inline-start:auto;display:inline-flex;align-items:center;gap:3px;padding:3px 7px;border:1px solid var(--sdk-grayLight1);border-radius:7px;cursor:pointer;color:var(--sdk-grayDark1);background:#fff}
+.wh .wf:hover{border-color:var(--teal);background:var(--teal-t)}
+.wh .wf.act{color:var(--teal-d);border-color:var(--teal)}
+.wh .wf b{font-size:11px;color:inherit}
+.wfmenu{min-width:240px;max-height:70vh;overflow:auto}
+.wfmenu .vh{display:block;padding:4px 10px 2px;color:var(--sdk-gray)}
+.wfmenu .it{display:flex;align-items:center;gap:8px}
+.wfmenu .it .ck{width:16px;height:16px;border:1.5px solid var(--sdk-gray);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:#fff;flex:none}
+.wfmenu .it.on .ck{background:var(--teal);border-color:var(--teal)}
+.wfmenu .it.hidr .ck{color:var(--sdk-grayDark1);border-color:transparent}
+.wfmenu .it i{width:10px;height:10px;border-radius:3px;flex:none}
+.wfmenu .tog{display:flex;align-items:center;gap:8px;background:none}
+.wfmenu .act{display:flex;justify-content:flex-end;padding:6px 10px}
+.wfmenu .act span{color:var(--crd);font-weight:700;cursor:pointer;text-decoration:underline}
 `;

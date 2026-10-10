@@ -24,7 +24,8 @@ const by = (id: string) => res.items.find(i => i.id === id)!;
 
 test('DEMO seed: every table maps, junk hidden', () => {
     const tables = new Set(res.items.map(i => i.table));
-    assert.equal(tables.size, 13);
+    assert.equal(tables.size, 7); // v0.2.11: Tasks, Petty Cash, Requests, transactions, Notebook, Approvals removed
+    for (const t of ['Tasks', 'Petty Cash', 'Requests', 'transactions', 'Notebook', 'Approvals']) assert.ok(!tables.has(t), t);
     assert.ok(!res.items.some(i => /^DEMO Slot/.test(i.name)));
     assert.ok(!res.items.some(i => i.id === 'recJunkType' || i.id === 'recJunkTask'));
     assert.ok(res.hidden >= 26);
@@ -53,14 +54,11 @@ test('lodging: date-only check-in/out get the default 15:00 / 11:00, hotel names
     assert.equal(l.guest, 'יונתן מזרחי');
     assert.equal(l.defT, true);
 });
-test('date-only tables: Booking Resources date via the Festival Days link; Tasks span', () => {
+test('date-only tables: Booking Resources date via the Festival Days link (v0.2.11: Tasks removed)', () => {
     const b = by('recfwNfLX6Uk634CQ');
     assert.equal(b.date, '2026-10-29');
     assert.equal(b.s, null);
-    const t = by('rec57LATHgBOX19Jy');
-    assert.equal(t.date, '2026-10-16');
-    assert.equal(t.dateEnd, '2026-10-20');
-    assert.deepEqual(t.people, ['Demo User']);
+    assert.equal(res.items.find(i => i.id === 'rec57LATHgBOX19Jy'), undefined);
 });
 test('slots inherit people from linked staffing / invitations', () => {
     const opening = by('recAKv013DvkZrGy9');

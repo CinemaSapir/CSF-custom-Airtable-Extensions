@@ -71,9 +71,10 @@ try {
     const pill = await b.js(`(()=>{const c=[...document.querySelectorAll('.wg .wc')].filter(e=>!e.classList.contains('more'));const g=getComputedStyle(document.querySelector('.wg'));const s=getComputedStyle(c[0]);
       return {n:c.length,texts:c.map(e=>e.textContent),tm:document.querySelectorAll('.wg .tm').length,nm:getComputedStyle(c[0].querySelector('.nm')).fontSize,tg:getComputedStyle(c[0].querySelector('.tg')).fontSize,pad:s.padding,gap:g.rowGap+' '+g.columnGap,h:Math.round(c[0].getBoundingClientRect().height)}})()`);
     check('2: window pills have no hours/time at all', pill.n > 0 && pill.tm === 0 && pill.texts.every(t => !/\d{1,2}:\d\d/.test(t)), pill.texts);
-    check('2: each pill = table tag + title only', await b.js(`[...document.querySelectorAll('.wg .wc:not(.more)')].every(e=>[...e.children].map(c=>c.className.split(' ')[0]).join()==='tg,nm')`));
-    check('3: text 20% smaller (title 17→13.6px, tag 11.5→9.2px)', pill.nm === '13.6px' && pill.tg === '9.2px', pill);
-    check('3: less padding (5/9 → 2/7px) and less gap (6/10 → 4/6px), pill ≤ 24px tall', pill.pad === '2px 7px' && pill.gap === '4px 6px' && pill.h <= 24, pill);
+    check('2: each pill = table tag + title only', await b.js(`[...document.querySelectorAll('.wg .wc:not(.more)')].filter(e=>e.querySelector('.nm.open')).every(e=>[...e.children].map(c=>c.className.split(' ')[0]).join()==='tg,nm,eye')`)); // v0.2.11: + 👁
+    // v0.2.11 (the owner 17:01): half-width pills, 2-line title → title 12.5px, tag 9px, pill 40px tall
+    check('3 (v0.2.11): title 12.5px, tag 9px', pill.nm === '12.5px' && pill.tg === '9px', pill);
+    check('3 (v0.2.11): padding 3/6px, gap 4/6px, pill = 40px (2 lines)', pill.pad === '3px 6px' && pill.gap === '4px 6px' && pill.h <= 40, pill);
     if (shots) {
         const w = await R('.win');
         await b.shot(resolve(EV, 'ui-v024-pills-closeup.png'), {x: 560, y: w.y, width: 720, height: w.h + 4, scale: 2});
