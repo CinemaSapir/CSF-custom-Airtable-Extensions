@@ -137,8 +137,8 @@ function getCustomProperties(base: Base) {
             defaultValue: cfgT ?? undefined,
         };
         const clockProps = [
-            {key: TARGET_DAY_KEY, label: 'שעון: מספר יום היעד ב-Festival Days (ריק = Extension_Config Number_1 / 0)', type: 'string' as const, defaultValue: ''},
-            {key: CLOCK_STATUS_KEY, label: 'שעון: סטטוסים למשבצת היעד (| בין ערכים; ריק = Option_List_4 / כל סטטוס)', type: 'string' as const, defaultValue: ''},
+            {key: TARGET_DAY_KEY, label: 'שעון · יום יעד (0 = 31.10)', type: 'string' as const, defaultValue: ''},
+            {key: CLOCK_STATUS_KEY, label: 'שעון · סטטוסים (ריק = משובץ)', type: 'string' as const, defaultValue: ''},
         ];
         return [cfgProp, statusToggleProperty(), mappingToggleProperty(), editToggleProperty(), ...clockProps, ...PILLS.flatMap(p => {
             const keys = propKeys(p.key);
@@ -330,6 +330,22 @@ function schemaFieldName(schema: EditSchema | null, fieldId: string | null): str
     return null;
 }
 const looseKey = (s: string) => norm(s).replace(/[\s_\-.]+/g, '');
+
+/** v0.4.11 (the owner 15:05: PROD clock was wrong because Start was hidden on the element): a field the countdown needs that is
+ *  NOT in table.fields — does the base have it (= hidden on the element)? Needs the edit-mode schema; null = can't tell. */
+export function hiddenFieldName(schema: EditSchema | null, table: Table | null, aliases: readonly string[]): string | null {
+    if (!schema || !table) return null;
+    const t = Object.values(schema).find(x => x.id === table.id);
+    if (!t) return null;
+    const hit = findByLooseName(Object.values(t.fieldsById ?? {}).map(f => ({name: f.name})), aliases);
+    return hit?.name ?? null;
+}
+/** «✗ שדה ההתחלה (Start) מוסתר באלמנט» — one line per missing field the countdown needs. */
+export function missingFieldLine(he: string, want: string, schema: EditSchema | null, hidden: string | null): string {
+    if (hidden) return `✗ ${he} (${hidden}) מוסתר באלמנט — יש להפעיל אותו ברשימת השדות של האלמנט`;
+    if (!schema) return `✗ ${he} (${want}) מוסתר באלמנט או לא קיים — יש להפעיל אותו ברשימת השדות של האלמנט`;
+    return `✗ ${he} (${want}) לא קיים בטבלה`;
+}
 
 /** Extension_Config fields this screen reads (for the «מצב חיבור» missing list). */
 const CONFIG_FIELDS_USED = [
@@ -623,23 +639,42 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
                             note: agg.mode === 'sum' && !sumField && !reserved ? 'שדה הסכום לא נמצא / לא מופעל לאלמנט' : null,
                         });
                 }
+                const fieldAlerts: string[] = [];
+                const need = (he: string, t: Table | null, fld: Field | null | undefined, want: string, aliases: readonly string[], required: boolean): string | null => {
+                    if (fld || !t) return null;
+                    const hidden = hiddenFieldName(schema, t, [want, ...aliases]);
+                    if (!required && !hidden) return null;
+                    const line = missingFieldLine(he, want, schema, hidden);
+                    fieldAlerts.push(line);
+                    return line;
+                };
+                const startAlert = need('שדה ההתחלה', slotsT, f?.start, fp('Source_Field_4'), FIELD_ALIASES.start, true);
+                const statusAlert = need('שדה הסטטוס', slotsT, f?.status, fp('Source_Field_3'), FIELD_ALIASES.status, true);
+                const endAlert = need('שדה הסיום', slotsT, f?.end, fp('Source_Field_5'), FIELD_ALIASES.end, false);
+                const linkAlert = need('שדה הקישור ליום', slotsT, f?.days, fp('Source_Field_11'), SLOT_DAY_LINK_ALIASES, false);
+                const dateAlert = need('שדה התאריך של Festival Days', daysT, dayDateF, 'Date', DAY_DATE_ALIASES, true);
+                const noteAlert = need('שדה ההערות של Festival Days', daysT, dayNoteF, 'Notes', DAY_NOTE_ALIASES, false);
+                const numAlert = need('שדה מספר היום', daysT, dayNumF, fp('Source_Field_10'), DAY_NUM_ALIASES, false);
+                const alertOf: Record<string, string | null> = {start: startAlert, status: statusAlert, end: endAlert, days: linkAlert};
                 if (slotsT) {
-                    const sf: [string, Field | null | undefined, string, boolean][] = [
-                        ['משבצות · התחלה (שעון)', f?.start, fp('Source_Field_4'), true],
-                        ['משבצות · סטטוס', f?.status, fp('Source_Field_3'), true],
-                        ['משבצות · סיום', f?.end, fp('Source_Field_5'), false],
+                    const sf: [string, Field | null | undefined, string, boolean, string?][] = [
+                        ['משבצות · התחלה (שעון)', f?.start, fp('Source_Field_4'), true, 'start'],
+                        ['משבצות · סטטוס', f?.status, fp('Source_Field_3'), true, 'status'],
+                        ['משבצות · סיום', f?.end, fp('Source_Field_5'), false, 'end'],
                         ['קישור סרט↔משבצת', f?.films ?? filmSlotsF, fp('Source_Field_6'), false],
                         ['קישור משבצת↔פרויקט', f?.project ?? projectSlotsF, fp('Source_Field_8'), false],
-                        ['שעון: קישור משבצת↔יום', f?.days, fp('Source_Field_11'), false],
+                        ['שעון: קישור משבצת↔יום', f?.days, fp('Source_Field_11'), false, 'days'],
                     ];
-                    for (const [label, fld, want, required] of sf)
-                        sources.push({label, table: slotsT.name, field: fld?.name ?? want, via: fld ? 'לפי שם' : 'לא נמצא', ok: !!fld || !required, note: !fld ? (required ? 'חובה לשעון' : 'רשות') : null});
+                    for (const [label, fld, want, required, k] of sf) {
+                        const alert = k ? alertOf[k] : null;
+                        sources.push({label, table: slotsT.name, field: fld?.name ?? want, via: fld ? 'לפי שם' : alert ? 'מוסתר באלמנט ✗' : 'לא נמצא', ok: !!fld || (!required && !alert), note: !fld ? (alert ?? (required ? 'חובה לשעון' : 'רשות')) : null});
+                    }
                 }
                 sources.push({label: 'שעון: Festival Days · טבלה', table: daysT?.name ?? null, via: daysT ? 'Source_Table_7 / לפי שם' : 'לא נמצאה', ok: true, note: daysT ? null : 'בלי הטבלה: היום הראשון = Date_2 (כלל ישן)'});
                 if (daysT) {
-                    sources.push({label: 'שעון: מספר יום', table: daysT.name, field: dayNumF?.name ?? fp('Source_Field_10'), via: dayNumF ? 'לפי שם' : 'לא נמצא → לפי השם («Day 0» / «יום 0»)', ok: true, note: null});
-                    sources.push({label: 'שעון: הערות היום («יום 0»)', table: daysT.name, field: dayNoteF?.name ?? 'Notes', via: dayNoteF ? 'לפי שם' : 'לא נמצא', ok: true, note: null});
-                    sources.push({label: 'שעון: תאריך היום', table: daysT.name, field: dayDateF?.name ?? 'Date', via: dayDateF ? 'לפי שם' : 'לא נמצא', ok: !!dayDateF || !!f?.days, note: !dayDateF && !f?.days ? 'אין תאריך ואין קישור — אי אפשר לשייך משבצות ליום' : null});
+                    sources.push({label: 'שעון: מספר יום', table: daysT.name, field: dayNumF?.name ?? fp('Source_Field_10'), via: dayNumF ? 'לפי שם' : 'לא נמצא → לפי השם («Day 0» / «יום 0»)', ok: !numAlert, note: numAlert});
+                    sources.push({label: 'שעון: הערות היום («יום 0»)', table: daysT.name, field: dayNoteF?.name ?? 'Notes', via: dayNoteF ? 'לפי שם' : 'לא נמצא', ok: !noteAlert, note: noteAlert});
+                    sources.push({label: 'שעון: תאריך היום', table: daysT.name, field: dayDateF?.name ?? 'Date', via: dayDateF ? 'לפי שם' : 'לא נמצא', ok: !!dayDateF || (!!f?.days && !dateAlert), note: dateAlert ?? (!dayDateF && !f?.days ? 'אין תאריך ואין קישור — אי אפשר לשייך משבצות ליום' : null)});
                 }
                 if (aggLines.bad.length)
                     sources.push({label: 'Option_List_2', table: null, via: 'Extension_Config', ok: false, note: `שורות לא תקינות: ${aggLines.bad.join(', ')} (פורמט: tickets = sum: Tickets Given)`});
@@ -658,7 +693,7 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
                     filtersTitle: 'אריחים: סינון + צבירה (אותו חישוב שמוצג באריח)',
                     extraTitle: 'באריח',
                     error: configError,
-                    notes: [`כותרת בפועל: ${live.title}`],
+                    notes: [...fieldAlerts, `כותרת בפועל: ${live.title}`],
                     version: VERSION,
                 };
                 const source = readSource(slotsT, f, recsByPill.events);

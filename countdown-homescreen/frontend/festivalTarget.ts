@@ -290,7 +290,7 @@ export function computeTarget(source: SlotsSource, nowMs: number, opts: TargetOp
     const fb = (hint: string | null) => fallback(nowMs, hint, fbMs);
     if (source.kind === 'loading') return fb('טוען משבצות…');
     if (source.kind === 'noTable') return fb('לא נמצאה הטבלה Slots_Events (או שלא הופעלה בחלונית הימנית)');
-    if (source.kind === 'noFields') return fb(`חסרים שדות ב־Slots_Events: ${source.missing.join(', ')}`);
+    if (source.kind === 'noFields') return fb(`חסרים שדות ב־Slots_Events: ${source.missing.join(', ')} — מוסתרים באלמנט או לא קיימים (v0.4.11)`);
 
     if (opts.days) return dayTarget(source.slots, nowMs, opts, fb);
     const scheduled = source.slots.filter(s => isScheduledStatus(s.status, opts.statuses) && s.startMs !== null);
