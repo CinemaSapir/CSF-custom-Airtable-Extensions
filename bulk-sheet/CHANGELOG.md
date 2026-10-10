@@ -1,5 +1,8 @@
 # Bulk sheet «קופי פייסט - הזנה מרובה» — changelog (box copy)
 
+## v0.5.1 — 2026-10-10
+- Shared «מצב חיבור» status panel (status-panel v1, same files as countdown-homescreen v0.4.5): right-pane boolean «show מצב חיבור · Extension_Config», default OFF; ON = always shown (published view too). Shows config table, matched row (Extension/Variant), fields visible to the element + slots read but not enabled, People/Roles/Assignments table resolution and the 11 written fields (by id → by name). Read-only.
+
 - **v0.5.0 (2026-10-10, committed on the box only — NOT released): Extension_Config wiring.**
   - Extension_Config is READ-ONLY here: the hook is the v3.1 copy (same as countdown v0.4.1), where Door 2 writes are opt-in (`writes: true`) and OFF. The extension never creates rows or fills Slot_Map, Code_Version or Last_Synced. The table is found from the right-pane «configTable», else by the name Extension_Config (exact, then loose).
   - `frontend/cfg.ts` + shared `useExtensionConfig.ts` (design v3, 269 fields). Row `Extension = bulk-sheet` (+ optional Variant). 43 slots: Title, Heading_1, Table_Heading_1–9, Helper_Text_1–5, Button_Text_1–6, Content_Text_1–5, Empty_State_Text_1, Error_Text_1–3, Number_1–3 (start rows 20 / batch 50 ≤ 50 / +10 rows), Color_1–6 (confetti), Source_Table_1–3. Map: `/workspace/csf-extension-config/maps/bulk-sheet.md` + `bulk-sheet-config-map.png`.

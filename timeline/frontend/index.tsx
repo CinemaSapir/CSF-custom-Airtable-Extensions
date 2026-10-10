@@ -1,13 +1,15 @@
 import {createContext, useContext, useMemo} from 'react';
-import {colorUtils, expandRecord, initializeBlock, useBase, useCustomProperties, useRecords, useSession} from '@airtable/blocks/interface/ui';
+import {colorUtils, expandRecord, initializeBlock, useBase, useCustomProperties, useGlobalConfig, useRecords, useSession} from '@airtable/blocks/interface/ui';
 import type {Base, Field, Record as AirtableRecord, Table} from '@airtable/blocks/interface/models';
 import pkg from '../package.json';
 import {CONFIG_SLUG, CONFIG_VARIANT, TABLE_LIST, TIMELINE_DEFAULTS, TIMELINE_DOCS} from './config';
 import {CONFIG_TABLE_NAME, ExtensionConfigProvider, looseName, optionLabel, useExtensionConfig} from './useExtensionConfig';
 import {Timeline, type ColumnDef} from './Timeline';
+import {StatusPanel} from './StatusPanel';
+import {STATUS_TOGGLE_KEY, isStatusOn, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
 import type {Writer} from './EditUi';
 import {mapFields, type FieldLike} from './logic/edit';
-import {FILTER_SLOTS, buildDays, distinctVals, filterKind, israelParts, parseOp, parseRef, parseRes, pickRes, splitVals, tzModeOf, type Day, type FilterOp, type ColFilters} from './logic/core';
+import {FILTER_SLOTS, buildDays, passCol, distinctVals, filterKind, israelParts, parseOp, parseRef, parseRes, pickRes, splitVals, tzModeOf, type Day, type FilterOp, type ColFilters} from './logic/core';
 import {names as namesOf, readItems, type RecView, type TableInput} from './logic/read';
 import {FESTIVAL_DAY_FIELDS, LOOKUP_TABLES, TABLE_SPECS, type TableSpec} from './logic/tables';
 
@@ -40,6 +42,8 @@ function getCustomProperties(base: Base) {
     const props: Array<Record<string, unknown> & {key: string; label: string; type: 'table' | 'string' | 'enum' | 'field' | 'boolean'}> = [
         {key: 'configTable', label: 'טבלת הגדרות (Extension_Config)', type: 'table' as const, defaultValue: base.getTableByNameIfExists(CONFIG_TABLE_NAME) ?? undefined},
         {key: 'configVariant', label: 'גרסת עמוד (Variant)', type: 'string' as const, defaultValue: CONFIG_VARIANT},
+        // shared «מצב חיבור» panel (status-panel v1): default OFF; ON = always shown (published view too)
+        statusToggleProperty(),
     ];
     for (const sp of TABLE_SPECS) {
         const t = findLoose(base.tables, sp.aliases);
@@ -72,7 +76,7 @@ function Root() {
             docs={TIMELINE_DOCS}
             door2={false}
         >
-            <Loader />
+            <Loader variant={variant} paneConfigTable={configTable} />
         </ExtensionConfigProvider>
         </CpCtx.Provider>
     );
@@ -91,7 +95,7 @@ function ChainStep({list, i, acc, done}: {list: Array<{key: string; table: Table
     return <Chain list={list} i={i + 1} acc={next} done={done} />;
 }
 
-function Loader() {
+function Loader({variant, paneConfigTable}: {variant: string; paneConfigTable: Table | null}) {
     const base = useBase();
     const cfg = useExtensionConfig();
     const tableRows = cfg.options('Option_List_6');
@@ -105,7 +109,8 @@ function Loader() {
     }
     const fdTable = cfg.table('Source_Table_3') ?? findLoose(base.tables, LOOKUP_TABLES.festivalDays);
     const list = fdTable ? [...found, {key: '__days', table: fdTable}] : found;
-    return <Chain list={list} i={0} acc={[]} done={l => <Screen loaded={l} notices={notices} hasDays={!!fdTable} />} />;
+    const st: StatusCtx = {variant, paneConfigTable, missingTables: notices.slice(), fdTable, wanted: tableRows.map(r => r.value)};
+    return <Chain list={list} i={0} acc={[]} done={l => <Screen loaded={l} notices={notices} hasDays={!!fdTable} st={st} />} />;
 }
 
 /** v0.2.2: the field's own time-zone options decide how its UTC value is read (Field.options; config.options in the harness) */
@@ -160,7 +165,8 @@ function recView(table: Table, rec: AirtableRecord, cache: Map<string, Field | n
 
 const REQUIRED: {[time in TableSpec['time']]: Array<keyof TableSpec>} = {own: ['start'], borrow: ['slots'], date: [], lodging: ['start'], stamp: []};
 
-function Screen({loaded, notices: n0, hasDays}: {loaded: Loaded[]; notices: string[]; hasDays: boolean}) {
+type StatusCtx = {variant: string; paneConfigTable: Table | null; missingTables: string[]; fdTable: Table | null; wanted: string[]};
+function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: string[]; hasDays: boolean; st: StatusCtx}) {
     const cfg = useExtensionConfig();
     const session = useSession();
     const notices = [...n0];
@@ -356,6 +362,7 @@ function Screen({loaded, notices: n0, hasDays}: {loaded: Loaded[]; notices: stri
         cfg.status === 'no-table' ? 'הגדרות: ברירות מחדל בקוד (Extension_Config לא קיים/לא מופעל)' : cfg.status === 'ok' ? `הגדרות: Extension_Config · ${CONFIG_SLUG} [${CONFIG_VARIANT}]` : `הגדרות: ${cfg.status}`;
     const num = (slot: 'Number_1' | 'Number_2' | 'Number_3' | 'Number_4', d: number) => cfg.number(slot) ?? d;
     return (
+        <>
         <Timeline
             days={days}
             items={res.items}
@@ -387,6 +394,85 @@ function Screen({loaded, notices: n0, hasDays}: {loaded: Loaded[]; notices: stri
             tableFilters={Object.fromEntries(Object.entries(tableFilters).map(([t, v]) => [t, {field: v.field, options: v.options}]))}
             colDefaults={colDefaults}
         />
+        <TimelineStatus st={st} loaded={tableData} items={res.items} tableFilters={tableFilters} colDefaults={colDefaults} />
+        </>
+    );
+}
+
+/** «מצב חיבור» (shared status-panel v1): config table, row (Extension/Variant), visible fields, every table + the fields the
+ *  columns read, and per-table default filters (right pane → Filter_N) with matched / total items. Read-only. */
+function TimelineStatus(props: {
+    st: StatusCtx;
+    loaded: Loaded[];
+    items: ReadonlyArray<{table: string}>;
+    tableFilters: {[t: string]: {field: string; op: string; values: string[]; source: string}};
+    colDefaults: ColFilters;
+}) {
+    const {st, loaded, items, tableFilters, colDefaults} = props;
+    const base = useBase();
+    const cfg = useExtensionConfig();
+    const cp = useContext(CpCtx);
+    const globalConfig = useGlobalConfig();
+    if (!isStatusOn(cp[STATUS_TOGGLE_KEY])) return null;
+    let rawCfg: unknown = null;
+    try {
+        rawCfg = globalConfig.get('configTable');
+    } catch {
+        rawCfg = null;
+    }
+    const cfgTable = st.paneConfigTable ?? base.getTableByNameIfExists(CONFIG_TABLE_NAME) ?? findLoose(base.tables, [CONFIG_TABLE_NAME]);
+    const cfgVia = cfgTable && rawCfg === cfgTable.id ? 'pane' : cfgTable ? 'name' : 'none';
+    const sources: StatusSource[] = [];
+    for (const l of loaded) {
+        const sp = TABLE_SPECS.find(s => s.key === l.key);
+        sources.push({label: `${HE_LABEL[l.key] || l.key} · טבלה`, table: l.table.name, via: 'Option_List_6 → לפי שם', ok: true, note: `${l.records.length} רשומות`});
+        if (!sp) continue;
+        for (const [role, aliases] of Object.entries(sp)) {
+            if (!Array.isArray(aliases) || role === 'aliases' || !aliases.every(a => typeof a === 'string')) continue;
+            const f = findLoose(l.table.fields, aliases as string[]);
+            const req = (REQUIRED[sp.time] as string[]).includes(role);
+            sources.push({label: `${HE_LABEL[l.key] || l.key} · ${role}`, table: l.table.name, field: f?.name ?? (aliases as string[])[0] ?? null, via: f ? 'לפי שם' : req ? 'לא נמצא ✗' : 'לא נמצא', ok: !!f || !req, note: f ? null : req ? 'חובה — יש להפעיל לאלמנט' : 'רשות'});
+        }
+    }
+    for (const m of st.missingTables) sources.push({label: 'טבלה מ-Option_List_6', table: null, via: 'לא נמצאה ✗', ok: false, note: m});
+    sources.push({label: 'Festival Days (שמות ימים)', table: st.fdTable?.name ?? null, via: st.fdTable ? 'Source_Table_3 / לפי שם' : 'לא נמצאה', ok: true, note: st.fdTable ? null : 'רשות — שמות ימים כלליים'});
+    const filters: StatusFilter[] = Object.entries(tableFilters).map(([t, f]) => {
+        const mine = items.filter(i => i.table === t);
+        const active = !!colDefaults[t];
+        return {
+            label: HE_LABEL[t] || t,
+            table: loaded.find(l => l.key === t)?.table.name ?? t,
+            field: f.field,
+            via: f.source,
+            op: f.op === 'none' ? 'אינו אחד מ (is none of)' : 'הוא אחד מ (is any of)',
+            values: f.values,
+            matched: active ? mine.filter(i => passCol(i as never, colDefaults)).length : mine.length,
+            total: mine.length,
+            extra: active ? 'ברירת מחדל של המשפך (המשתמש יכול לשנות)' : 'ללא סינון',
+        };
+    });
+    return (
+        // the timeline fills the viewport, so the panel docks over it (bottom-left, scrolls; click the header to fold it)
+        <div dir="rtl" style={{position: 'fixed', left: 8, bottom: 28, zIndex: 50, width: 'min(980px, calc(100vw - 16px))', maxHeight: '62vh', overflow: 'auto', boxShadow: '0 4px 18px rgba(0,0,0,.18)', borderRadius: 8, background: '#fff'}}>
+            <StatusPanel
+                base={base}
+                on
+                configTable={cfgTable}
+                configVia={cfgVia}
+                slug={CONFIG_SLUG}
+                variant={st.variant}
+                status={String(cfg.status)}
+                record={cfg.record}
+                variantRecord={cfg.variantRecord}
+                fieldsUsed={['Extension', 'Variant', ...Object.keys(TIMELINE_DEFAULTS)]}
+                sources={sources}
+                filters={filters}
+                filtersTitle="סינון לפי טבלה (חלונית ימנית → Filter_N)"
+                extraTitle="הערה"
+                notes={[`טבלאות מבוקשות (Option_List_6): ${st.wanted.join(' · ') || '—'}`]}
+                version={VERSION}
+            />
+        </div>
     );
 }
 

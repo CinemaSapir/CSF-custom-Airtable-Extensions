@@ -9,7 +9,7 @@
  * Never touches the Airtable User field or sensitive People fields. Never deletes records.
  */
 import {Component, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode} from 'react';
-import {expandRecord, initializeBlock, useBase, useColorScheme, useCustomProperties, useRecords} from '@airtable/blocks/interface/ui';
+import {expandRecord, initializeBlock, useBase, useColorScheme, useCustomProperties, useGlobalConfig, useRecords} from '@airtable/blocks/interface/ui';
 import {FieldType, type Base, type Field, type Record as AirtableRecord, type Table} from '@airtable/blocks/interface/models';
 import {
     COL,
@@ -36,9 +36,11 @@ import {
 } from './logic';
 import './style.css';
 import {CONFIG_DISPLAY_NAME, CONFIG_SLUG, DEFAULTS, DOCS, type BSText, useCfg} from './cfg';
-import {CONFIG_TABLE_NAME, ExtensionConfigProvider} from './useExtensionConfig';
+import {CONFIG_TABLE_NAME, ExtensionConfigProvider, findConfigTable} from './useExtensionConfig';
+import {StatusPanel} from './StatusPanel';
+import {STATUS_TOGGLE_KEY, isStatusOn, statusToggleProperty, type StatusSource} from './statusCore';
 
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 
 // ---------------------------------------------------------------------------
 // IDs (verified 2026-09-25 against DEMO appiN9MrP73g6R9hi, same as people-roles-ext)
@@ -161,6 +163,8 @@ function getCustomProperties(base: Base) {
         {key: 'configTable', label: 'טבלת הגדרות (Extension_Config) – לא חובה', type: 'table' as const, defaultValue: base.getTableByNameIfExists(CONFIG_TABLE_NAME) ?? undefined},
         {key: 'configSlug', label: 'מפתח הגדרות (Extension)', type: 'string' as const, defaultValue: CONFIG_SLUG},
         {key: 'configVariant', label: 'גרסת עמוד (Variant) – ריק = ברירת מחדל', type: 'string' as const, defaultValue: ''},
+        // v0.5.1: shared «מצב חיבור» panel (default OFF; ON = always shown, published view too)
+        statusToggleProperty(),
     ];
 }
 
@@ -1182,13 +1186,102 @@ function App() {
     const variant = typeof cp.configVariant === 'string' ? cp.configVariant.trim() : '';
     return (
         <ExtensionConfigProvider base={base} configTable={asTable(cp.configTable) ?? undefined} slug={slug} variant={variant} version={VERSION} displayName={CONFIG_DISPLAY_NAME} defaults={DEFAULTS} docs={DOCS}>
-            <Root cp={cp} />
+            <Root cp={cp} status={<Status cp={cp} slug={slug} variant={variant} />} />
         </ExtensionConfigProvider>
     );
 }
 
+/** v0.5.1 «מצב חיבור» (shared status-panel v1): config table, row, visible fields, table + field resolution. Read-only. */
+function Status(props: {cp: {[key: string]: unknown}; slug: string; variant: string}) {
+    const {cp, slug, variant} = props;
+    const base = useBase();
+    const globalConfig = useGlobalConfig();
+    const {cfg} = useCfg();
+    const on = isStatusOn(cp[STATUS_TOGGLE_KEY]);
+    if (!on) return null;
+    const raw = (k: string) => {
+        try {
+            const v = globalConfig.get(k);
+            return typeof v === 'string' ? v : null;
+        } catch {
+            return null;
+        }
+    };
+    const cfgTable = asTable(cp.configTable) ?? findConfigTable(base);
+    const cfgVia = cfgTable && raw('configTable') === cfgTable.id ? 'pane' : cfgTable ? 'name' : 'none';
+    const cfgOk = cfg?.status === 'ok' || cfg?.status === 'duplicate';
+    const sources: StatusSource[] = [];
+    const tableRow = (label: string, key: string, slot: 'Source_Table_1' | 'Source_Table_2' | 'Source_Table_3', id: string): Table | null => {
+        const pane = asTable(cp[key]);
+        let t: Table | null = null;
+        let via = '—';
+        if (pane) {
+            t = pane;
+            via = raw(key) === pane.id ? 'חלונית' : 'מזהה DEMO (ברירת מחדל)';
+        } else if (cfg && cfg.raw(slot)) {
+            t = cfg.table(slot);
+            via = `Extension_Config ${slot}`;
+        }
+        if (!t) {
+            t = base.getTableByIdIfExists(id);
+            if (t) via = 'מזהה DEMO (ברירת מחדל)';
+        }
+        sources.push({label, table: t?.name ?? `${label} ✗`, via: t ? via : 'לא נמצאה / לא מופעלת', ok: !!t});
+        return t;
+    };
+    const pt = tableRow('אנשים (People)', 'peopleTable', 'Source_Table_1', IDS.people);
+    const rt = tableRow('תפקידים (Roles)', 'rolesTable', 'Source_Table_2', IDS.roles);
+    const at = tableRow('שיבוצים (Assignments)', 'assignmentsTable', 'Source_Table_3', IDS.assignments);
+    const fieldRow = (t: Table | null, label: string, id: string, name: string) => {
+        if (!t) return;
+        let via = 'לא מופעל ✗';
+        let f: Field | null = null;
+        try {
+            f = t.getFieldIfExists(id);
+            if (f) via = 'לפי מזהה';
+            else {
+                f = t.getFieldIfExists(name);
+                if (f) via = 'לפי שם';
+            }
+        } catch {
+            f = null;
+        }
+        sources.push({label, table: t.name, field: f?.name ?? name, via, ok: !!f, note: f ? null : 'יש להפעיל את השדה לאלמנט'});
+    };
+    fieldRow(pt, 'שם', IDS.p.name, 'Full Name');
+    fieldRow(pt, 'טלפון אישי', IDS.p.phone, 'Phone_Personal');
+    fieldRow(pt, 'אימייל אישי', IDS.p.email, 'Email_Personal');
+    fieldRow(rt, 'תפקיד', IDS.r.name, 'Role');
+    fieldRow(rt, 'טלפון תפקיד', IDS.r.phone, 'Role Specific Phone');
+    fieldRow(rt, 'אימייל תפקיד', IDS.r.email, 'Role Specific Email');
+    fieldRow(rt, 'שותף', IDS.r.partner, 'Partner');
+    fieldRow(at, 'שיבוץ ← אנשים', IDS.a.people, 'People');
+    fieldRow(at, 'שיבוץ ← תפקידים', IDS.a.roles, 'Roles');
+    fieldRow(at, 'התחלה', IDS.a.start, 'Start');
+    fieldRow(at, 'סיום', IDS.a.end, 'End');
+    return (
+        <div dir="rtl" style={{padding: '0 12px 12px'}}>
+            <StatusPanel
+                base={base}
+                on={on}
+                configTable={cfgTable}
+                configVia={cfgVia}
+                slug={slug}
+                variant={variant}
+                status={String(cfg?.status ?? 'no-provider')}
+                record={cfg?.record ?? null}
+                variantRecord={cfg?.variantRecord ?? null}
+                fieldsUsed={['Extension', 'Variant', ...Object.keys(DEFAULTS)]}
+                sources={sources}
+                notes={cfgOk ? [] : ['אין שורת הגדרות פעילה → ברירות מחדל בקוד (המסך לא משתנה)']}
+                version={VERSION}
+            />
+        </div>
+    );
+}
+
 /** v0.5.0: right pane → Extension_Config Source_Table_1–3 (only when that cell is filled) → DEMO ids */
-function Root(props: {cp: {[key: string]: unknown}}) {
+function Root(props: {cp: {[key: string]: unknown}; status?: ReactNode}) {
     const customPropertyValueByKey = props.cp;
     const base = useBase();
     const {colorScheme} = useColorScheme();
@@ -1222,6 +1315,7 @@ function Root(props: {cp: {[key: string]: unknown}}) {
                     <p className="top-err">{t('Error_Text_1', {tables: missing.join(' · ')})}</p>
                 </div>
             )}
+            {props.status}
         </div>
     );
 }

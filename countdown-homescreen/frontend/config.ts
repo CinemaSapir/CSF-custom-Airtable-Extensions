@@ -9,7 +9,8 @@ export const CONFIG_DEFAULTS = {
     Title: 'יאללה היידה!',
 
     // Pill labels (row 2: people) and (row 1: programme), then clock units.
-    Content_Text_1: 'כרטיסים שנמכרו',
+    // v0.4.5: invitation tickets (SUM of Invitations.«Tickets Given»), not sold tickets
+    Content_Text_1: 'כרטיסי הזמנה',
     Content_Text_2: 'הזמנות שנשלחו',
     Content_Text_3: 'סרטים',
     Content_Text_4: 'אירועים',
@@ -17,13 +18,20 @@ export const CONFIG_DEFAULTS = {
     Content_Text_6: 'ימים',
     Content_Text_7: 'שעות',
     Content_Text_8: 'דקות',
+    /** v0.4.5: reserved pill for future SOLD tickets (Source_Table_6 / Source_Field_9) — «—» until set. */
+    Content_Text_10: 'כרטיסים שנמכרו',
 
-    Source_Table_1: 'Tickets',
+    /** v0.4.5: tickets pill table = Invitations (there is no Tickets table). */
+    Source_Table_1: 'Invitations',
     Source_Table_2: 'Invitations',
     Source_Table_3: 'Slots_Events',
     Source_Table_4: 'Films',
     Source_Table_5: 'Projects',
+    /** v0.4.5: reserved — future sold-tickets table. Empty = pill shows «—». */
+    Source_Table_6: '',
 
+    /** v0.4.5: number field summed by the tickets pill. */
+    Source_Field_1: 'Invitations.Tickets Given',
     Source_Field_3: 'Slots_Events.Status',
     Source_Field_4: 'Slots_Events.Start',
     Source_Field_5: 'Slots_Events.End',
@@ -33,9 +41,14 @@ export const CONFIG_DEFAULTS = {
     Source_Field_7: 'Slots_Events.Type',
     /** Project ↔ slot link. Either side works: Slots_Events.Project or Projects.Events. */
     Source_Field_8: 'Slots_Events.Project',
+    /** v0.4.5: reserved — sum field of the future sold-tickets pill (empty = count records). */
+    Source_Field_9: '',
 
     /** Status that counts as scheduled (one value per line). */
     Option_List_1: 'משובץ',
+    /** v0.4.5: per-pill aggregation, one line per pill: «tickets = sum: Tickets Given» · «films = count» · «events = remaining».
+     *  Empty = code default (tickets = sum of Tickets Given, every other pill = count). */
+    Option_List_2: '',
 
     /** Fallback target when no משובץ slot is found: 24.10.2026 20:00 Israel time. */
     Date_1: '2026-10-24T17:00:00.000Z',

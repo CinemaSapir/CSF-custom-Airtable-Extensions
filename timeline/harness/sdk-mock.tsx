@@ -125,6 +125,8 @@ export const useCustomProperties = (get?: (b: unknown) => Array<{key: string; ty
     const v: {[k: string]: unknown} = {configVariant: 'timeline'};
     const props = get ? get(base) : [];
     (globalThis as {__TL_PROPS?: unknown}).__TL_PROPS = props.map(p => ({key: p.key, type: p.type, table: p.table?.name}));
+    // v0.2.7: ?status=1 turns the shared «מצב חיבור» panel on (right-pane boolean showStatusPanel)
+    if (QS.get('status')) v.showStatusPanel = true;
     const pf = QS.get('pf');
     if (pf) {
         const [ref, op = 'any', vals = ''] = pf.split('~');
@@ -136,6 +138,8 @@ export const useCustomProperties = (get?: (b: unknown) => Array<{key: string; ty
     }
     return {customPropertyValueByKey: v, errorState: null};
 };
+// v0.2.7: status-panel v1 reads the raw right-pane value of configTable (was it really picked?)
+export const useGlobalConfig = () => ({get: (_k: string): unknown => null});
 export const useSession = () => ({currentUser: {id: 'usrHarness', name: 'Harness', email: 'h@example.com'}});
 export const expandRecord = (r: {id: string}) => {
     expanded.push(r.id);

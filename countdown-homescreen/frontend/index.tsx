@@ -35,14 +35,17 @@ import {
     PROJECT_SLOT_LINK_ALIASES,
     SLOT_FILM_LINK_ALIASES,
     SLOT_PROJECT_LINK_ALIASES,
-    TICKETS_TABLE_ALIASES,
     computeCounts,
     linkIds,
     type CountSlot,
     type CountsInput,
     type LinkedRec,
 } from './counts';
-import {CountdownView, safeHex, type DiagData, type DiagPill, type PillData, type ViewColors} from './view';
+import {CountdownView, safeHex, type ViewColors} from './view';
+import {AGG_OPS, buildPills, cellNumber, parseAggList, pickAgg, type AggMode, type PillFilterDiag, type PillPrep} from './aggregate';
+
+import {StatusPanel} from './StatusPanel';
+import {STATUS_TOGGLE_KEY, isStatusOn, statusToggleProperty, type StatusSource} from './statusCore';
 import {
     FILTER_OPS,
     PILLS,
@@ -70,7 +73,10 @@ const PILL_TABLE_ALIASES: Record<PillKey, readonly string[]> = {
     events: TABLE_ALIASES,
     projects: PROJECTS_TABLE_ALIASES,
     invitations: INVITATIONS_TABLE_ALIASES,
-    tickets: TICKETS_TABLE_ALIASES,
+    // v0.4.5: invitation tickets live on Invitations («Tickets Given»); there is no Tickets table
+    tickets: INVITATIONS_TABLE_ALIASES,
+    // v0.4.5: reserved for sold tickets — NO default / aliases: «—» until the owner sets a table
+    sold: [],
 };
 const PILL_LABEL: Record<PillKey, string> = {
     films: D.Content_Text_3,
@@ -78,6 +84,30 @@ const PILL_LABEL: Record<PillKey, string> = {
     projects: D.Content_Text_5,
     invitations: D.Content_Text_2,
     tickets: D.Content_Text_1,
+    sold: D.Content_Text_10,
+};
+/** v0.3–0.4.4 default of Content_Text_1; a config cell still holding it is read as the new default «כרטיסי הזמנה». */
+const OLD_TICKETS_LABEL = 'כרטיסים שנמכרו';
+/** Code-default aggregation per pill (Option_List_2 / right pane override). */
+const AGG_DEFAULT: Record<PillKey, {mode: AggMode; field: string}> = {
+    films: {mode: 'count', field: ''},
+    events: {mode: 'count', field: ''},
+    projects: {mode: 'count', field: ''},
+    invitations: {mode: 'count', field: ''},
+    tickets: {mode: 'sum', field: fieldPart(D.Source_Field_1)},
+    sold: {mode: 'count', field: ''},
+};
+/** Source_Field_N that holds the sum field per pill (Table.Field; empty = none). */
+const AGG_SLOT: Partial<Record<PillKey, 'Source_Field_1' | 'Source_Field_9'>> = {tickets: 'Source_Field_1', sold: 'Source_Field_9'};
+const PHASE_PILLS: ReadonlySet<PillKey> = new Set(['films', 'events', 'projects']);
+/** Option_List_2 pill names: key + code label (+ a few spellings). */
+const AGG_NAMES: Record<PillKey, readonly string[]> = {
+    films: ['films', 'סרטים', D.Content_Text_3],
+    events: ['events', 'slots', 'אירועים', D.Content_Text_4],
+    projects: ['projects', 'מסגרות תוכן', 'פרויקטים', D.Content_Text_5],
+    invitations: ['invitations', 'הזמנות', D.Content_Text_2],
+    tickets: ['tickets', 'invitation tickets', 'כרטיסים', 'כרטיסי הזמנה', D.Content_Text_1],
+    sold: ['sold', 'sold tickets', 'כרטיסים שנמכרו', D.Content_Text_10],
 };
 const defaultTableName = (k: PillKey) => PILLS.find(p => p.key === k)!.defaultTable;
 
@@ -91,10 +121,23 @@ function getCustomProperties(base: Base) {
             type: 'table' as const,
             defaultValue: cfgT ?? undefined,
         };
-        return [cfgProp, ...PILLS.flatMap(p => {
+        return [cfgProp, statusToggleProperty(), ...PILLS.flatMap(p => {
             const keys = propKeys(p.key);
             const labels = propLabels(PILL_LABEL[p.key], p.key);
-            const t = findTable(base, p.defaultTable, PILL_TABLE_ALIASES[p.key]);
+            const t = p.defaultTable ? findTable(base, p.defaultTable, PILL_TABLE_ALIASES[p.key]) : null;
+            const sumDefault = t && AGG_DEFAULT[p.key].field ? findByLooseName(t.fields, [AGG_DEFAULT[p.key].field]) : null;
+            const aggProps = [
+                {
+                    key: keys.agg,
+                    label: labels.agg,
+                    type: 'enum' as const,
+                    possibleValues: AGG_OPS.filter(o => o.value !== 'remaining' || PHASE_PILLS.has(p.key)).map(o => ({value: o.value, label: o.label})),
+                    defaultValue: 'auto',
+                },
+                t
+                    ? {key: keys.sumField, label: labels.sumField, type: 'field' as const, table: t, ...(sumDefault ? {defaultValue: sumDefault} : {})}
+                    : {key: keys.sumFieldName, label: labels.sumFieldName, type: 'string' as const, defaultValue: ''},
+            ];
             return [
                 {key: keys.table, label: labels.table, type: 'table' as const, defaultValue: t ?? undefined},
                 t
@@ -108,6 +151,7 @@ function getCustomProperties(base: Base) {
                     defaultValue: 'none',
                 },
                 {key: keys.value, label: labels.value, type: 'string' as const, defaultValue: ''},
+                ...aggProps,
             ];
         })];
     } catch {
@@ -120,7 +164,12 @@ function getCustomProperties(base: Base) {
 const HOOK_DEFAULTS: ConfigDefaults = {...D, Date_2: new Date(israelMidnightMs(D.Date_2)).toISOString()} as ConfigDefaults;
 const HOOK_DOCS: SlotDocs = {
     Title: 'כותרת מעל השעון',
-    Content_Text_1: 'תווית אריח כרטיסים',
+    Content_Text_1: 'תווית אריח כרטיסי הזמנה (סכום Tickets Given)',
+    Content_Text_10: 'תווית אריח כרטיסים שנמכרו (שמור, «—» עד שמוגדר)',
+    Source_Field_1: 'שדה מספרי לסכום כרטיסי הזמנה (Invitations.Tickets Given)',
+    Source_Table_6: 'טבלת כרטיסים שנמכרו (שמור, ריק = «—»)',
+    Source_Field_9: 'שדה לסכום כרטיסים שנמכרו (ריק = ספירת רשומות)',
+    Option_List_2: 'צבירה לכל אריח, שורה לכל אריח: tickets = sum: Tickets Given · films = count · events = remaining',
     Content_Text_2: 'תווית אריח הזמנות',
     Content_Text_3: 'תווית אריח סרטים',
     Content_Text_4: 'תווית אריח אירועים',
@@ -128,7 +177,7 @@ const HOOK_DOCS: SlotDocs = {
     Content_Text_6: 'יחידה: ימים',
     Content_Text_7: 'יחידה: שעות',
     Content_Text_8: 'יחידה: דקות',
-    Source_Table_1: 'טבלת כרטיסים (ספירה)',
+    Source_Table_1: 'טבלת כרטיסי הזמנה (ברירת מחדל Invitations)',
     Source_Table_2: 'טבלת הזמנות (ספירה)',
     Source_Table_3: 'טבלת המשבצות (שעון + אירועים)',
     Source_Table_4: 'טבלת סרטים',
@@ -159,11 +208,13 @@ function Root() {
     // so the pill can say "picked but not enabled" instead of silently not filtering.
     const P: {[key: string]: unknown} = {...P0};
     for (const p of PILLS) {
-        try {
-            const raw = globalConfig.get(propKeys(p.key).field);
-            P[`${p.key}__rawField`] = typeof raw === 'string' ? raw : null;
-        } catch {
-            P[`${p.key}__rawField`] = null;
+        for (const [suffix, key] of [['__rawField', propKeys(p.key).field], ['__rawSumField', propKeys(p.key).sumField], ['__rawTable', propKeys(p.key).table]] as const) {
+            try {
+                const raw = globalConfig.get(key);
+                P[`${p.key}${suffix}`] = typeof raw === 'string' ? raw : null;
+            } catch {
+                P[`${p.key}${suffix}`] = null;
+            }
         }
     }
     const id = idOf(P.configTable, 'tbl');
@@ -195,7 +246,7 @@ function Root() {
             docs={HOOK_DOCS}
             writes={false}
         >
-            <CountdownScreen P={P} cfgSrc={cfgSrc} configError={error} />
+            <CountdownScreen P={P} cfgSrc={cfgSrc} configError={error} cfgTable={t} />
         </ExtensionConfigProvider>
     );
     // A broken config table must never take the countdown down: fall back to code defaults — but NOT forever
@@ -257,10 +308,10 @@ const looseKey = (s: string) => norm(s).replace(/[\s_\-.]+/g, '');
 /** Extension_Config fields this screen reads (for the «מצב חיבור» missing list). */
 const CONFIG_FIELDS_USED = [
     'Extension', 'Variant', 'Title',
-    ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => `Content_Text_${n}`),
-    ...[1, 2, 3, 4, 5].map(n => `Source_Table_${n}`),
-    ...[3, 4, 5, 6, 8].map(n => `Source_Field_${n}`),
-    'Option_List_1', 'Date_1', 'Date_2',
+    ...[1, 2, 3, 4, 5, 6, 7, 8, 10].map(n => `Content_Text_${n}`),
+    ...[1, 2, 3, 4, 5, 6].map(n => `Source_Table_${n}`),
+    ...[1, 3, 4, 5, 6, 8, 9].map(n => `Source_Field_${n}`),
+    'Option_List_1', 'Option_List_2', 'Date_1', 'Date_2',
     ...[1, 2, 3, 4, 5, 6, 7].map(n => `Color_${n}`),
     ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].flatMap(n => [`Filter_${n}`, `Filter_Operator_${n}`, `Filter_Value_${n}`]),
     'Use_Defaults_Only',
@@ -318,7 +369,9 @@ function readLive(cfg: ExtensionConfig): Live {
             events: t('Content_Text_4', D.Content_Text_4),
             projects: t('Content_Text_5', D.Content_Text_5),
             invitations: t('Content_Text_2', D.Content_Text_2),
-            tickets: t('Content_Text_1', D.Content_Text_1),
+            // v0.4.5: the pre-v0.4.5 default «כרטיסים שנמכרו» on this pill is obsolete (it is invitation tickets now)
+            tickets: ((x: string) => (x.trim() === OLD_TICKETS_LABEL ? D.Content_Text_1 : x))(t('Content_Text_1', D.Content_Text_1)),
+            sold: t('Content_Text_10', D.Content_Text_10),
         },
         units: [t('Content_Text_6', D.Content_Text_6), t('Content_Text_7', D.Content_Text_7), t('Content_Text_8', D.Content_Text_8)],
         statuses,
@@ -328,12 +381,13 @@ function readLive(cfg: ExtensionConfig): Live {
     };
 }
 
-const PILL_SOURCE_TABLE: Record<PillKey, 'Source_Table_1' | 'Source_Table_2' | 'Source_Table_3' | 'Source_Table_4' | 'Source_Table_5'> = {
+const PILL_SOURCE_TABLE: Record<PillKey, 'Source_Table_1' | 'Source_Table_2' | 'Source_Table_3' | 'Source_Table_4' | 'Source_Table_5' | 'Source_Table_6'> = {
     films: 'Source_Table_4',
     events: 'Source_Table_3',
     projects: 'Source_Table_5',
     invitations: 'Source_Table_2',
     tickets: 'Source_Table_1',
+    sold: 'Source_Table_6',
 };
 
 function idOf(v: unknown, prefix: string): string | null {
@@ -381,43 +435,48 @@ function safeName(r: AtRecord): string {
     }
 }
 
-function CountdownScreen({P, cfgSrc, configError}: {P: {[key: string]: unknown}; cfgSrc: ConfigSource; configError: string | null}) {
+function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]: unknown}; cfgSrc: ConfigSource; configError: string | null; cfgTable: Table | null}) {
     const base = useBase();
     const cfg = useExtensionConfig();
     const live = readLive(cfg);
+    const tableVia: Partial<Record<PillKey, string>> = {};
     /** Right pane → Extension_Config Source_Table_N (cell, else code default) → aliases. */
     const pillTable = (k: PillKey): Table | null => {
         const id = idOf(P[propKeys(k).table], 'tbl');
         const pane = id ? base.getTableByIdIfExists(id) : null;
-        if (pane) return pane;
+        if (pane) {
+            // the property's default is the by-name table: only a table the owner actually picked counts as «חלונית»
+            tableVia[k] = typeof P[`${k}__rawTable`] === 'string' ? 'חלונית' : 'לפי שם (ברירת מחדל)';
+            return pane;
+        }
         let fromCfg: Table | null = null;
         try {
-            fromCfg = cfg.table(PILL_SOURCE_TABLE[k]);
+            fromCfg = cfg.raw(PILL_SOURCE_TABLE[k]).trim() ? cfg.table(PILL_SOURCE_TABLE[k]) : null;
         } catch {
             fromCfg = null;
         }
-        return fromCfg ?? findTable(base, defaultTableName(k), PILL_TABLE_ALIASES[k]);
+        if (fromCfg) {
+            tableVia[k] = cfg.status === 'ok' || cfg.status === 'duplicate' ? `Extension_Config ${PILL_SOURCE_TABLE[k]}` : 'ברירת מחדל';
+            return fromCfg;
+        }
+        const def = defaultTableName(k);
+        const t = def ? findTable(base, def, PILL_TABLE_ALIASES[k]) : null;
+        tableVia[k] = t ? 'לפי שם (ברירת מחדל)' : def ? 'לא נמצאה ✗' : 'לא הוגדר (שמור)';
+        return t;
     };
     /** Source_Field_N (Table.Field) → field name part; a bad/empty cell falls back to the code default. */
-    const fp = (slot: 'Source_Field_3' | 'Source_Field_4' | 'Source_Field_5' | 'Source_Field_6' | 'Source_Field_8') => {
+    const fp = (slot: 'Source_Field_1' | 'Source_Field_3' | 'Source_Field_4' | 'Source_Field_5' | 'Source_Field_6' | 'Source_Field_8' | 'Source_Field_9') => {
         try {
             return fieldPart(cfg.raw(slot) || D[slot]);
         } catch {
             return fieldPart(D[slot]);
         }
     };
-    const slotsT = pillTable('events');
-    const filmsT = pillTable('films');
-    const projectsT = pillTable('projects');
-    const invitesT = pillTable('invitations');
-    const ticketsT = pillTable('tickets');
-    const tablesByPill: Record<PillKey, Table | null> = {
-        films: filmsT,
-        events: slotsT,
-        projects: projectsT,
-        invitations: invitesT,
-        tickets: ticketsT,
-    };
+    const tablesByPill = {} as Record<PillKey, Table | null>;
+    for (const p of PILLS) tablesByPill[p.key] = pillTable(p.key);
+    const slotsT = tablesByPill.events;
+    const filmsT = tablesByPill.films;
+    const projectsT = tablesByPill.projects;
 
     const f = slotsT
         ? {
@@ -430,69 +489,129 @@ function CountdownScreen({P, cfgSrc, configError}: {P: {[key: string]: unknown};
         : null;
     const filmSlotsF = findLink(filmsT, [fp('Source_Field_6'), ...FILM_SLOT_LINK_ALIASES]);
     const projectSlotsF = findLink(projectsT, PROJECT_SLOT_LINK_ALIASES);
+    const aggLines = (() => {
+        try {
+            return parseAggList(cfg.status === 'ok' || cfg.status === 'duplicate' ? cfg.raw('Option_List_2') : '', AGG_NAMES);
+        } catch {
+            return parseAggList('', AGG_NAMES);
+        }
+    })();
 
     return (
-        <AllRecs tables={[slotsT, filmsT, projectsT, invitesT, ticketsT]}>
-            {([slotRecs, filmRecs, projectRecs, inviteRecs, ticketRecs]) => {
-                const recsByPill: Record<PillKey, readonly AtRecord[] | null> = {
-                    films: filmRecs,
-                    events: slotRecs,
-                    projects: projectRecs,
-                    invitations: inviteRecs,
-                    tickets: ticketRecs,
-                };
+        <AllRecs tables={PILLS.map(p => tablesByPill[p.key])}>
+            {recList => {
+                const recsByPill = {} as Record<PillKey, readonly AtRecord[] | null>;
+                PILLS.forEach((p, i) => (recsByPill[p.key] = recList[i]));
                 const cfgFilters = readConfigFilters(cfg);
-                const pass = {} as Record<PillKey, ReadonlySet<string> | null>;
-                const meta = {} as Record<PillKey, Pick<PillData, 'filterTitle' | 'hint'>>;
                 const schema = editSchema(base);
-                const diagPills: DiagPill[] = [];
+                const pass = {} as Record<PillKey, ReadonlySet<string> | null>;
+                const preps: PillPrep[] = [];
+                const sources: StatusSource[] = [];
                 for (const p of PILLS) {
-                    const r = pillFilter(p.key, tablesByPill[p.key], recsByPill[p.key], P, cfgFilters, schema);
-                    pass[p.key] = r.pass;
-                    meta[p.key] = {filterTitle: r.title, hint: r.hint};
-                    diagPills.push({...r.diag, key: p.key, label: live.labels[p.key]});
+                    const k = p.key;
+                    const table = tablesByPill[k];
+                    const recs = recsByPill[k];
+                    const r = pillFilter(k, table, recs, P, cfgFilters, schema);
+                    pass[k] = r.pass;
+                    // aggregation: right pane → Option_List_2 → code default; field: pane → line → Source_Field_N → default
+                    const keys = propKeys(k);
+                    const pickedSum = P[keys.sumField];
+                    const pickedSumId = idOf(pickedSum, 'fld') ?? (typeof P[`${k}__rawSumField`] === 'string' ? (P[`${k}__rawSumField`] as string) : null);
+                    const typedSum = typeof P[keys.sumFieldName] === 'string' ? (P[keys.sumFieldName] as string) : '';
+                    const slot = AGG_SLOT[k];
+                    const agg = pickAgg(
+                        {mode: P[keys.agg], field: nameOf(pickedSum) || typedSum || schemaFieldName(schema, pickedSumId) || ''},
+                        aggLines.byPill.get(k),
+                        slot ? fp(slot) : '',
+                        AGG_DEFAULT[k],
+                        PHASE_PILLS.has(k),
+                    );
+                    let sumField: Field | null = null;
+                    if (agg.mode === 'sum' && table) {
+                        sumField = resolveFilterField(table, {fieldId: idOf(pickedSum, 'fld') ? pickedSumId : null, fieldName: agg.field}).field;
+                        if (!sumField && pickedSumId) sumField = table.getFieldIfExists(pickedSumId);
+                    }
+                    const numbers = new Map<string, number | null>();
+                    if (sumField && recs) {
+                        for (const rec of recs) {
+                            try {
+                                numbers.set(rec.id, cellNumber(rec.getCellValue(sumField), rec.getCellValueAsString(sumField)));
+                            } catch {
+                                numbers.set(rec.id, null);
+                            }
+                        }
+                    }
+                    const reserved = k === 'sold' && !table;
+                    preps.push({
+                        key: k,
+                        label: live.labels[k],
+                        calc: {ids: table && recs ? recs.map(x => x.id) : null, pass: r.pass, agg: {...agg, field: sumField?.name ?? agg.field}, sumFieldOk: !!sumField, numbers},
+                        filter: r.diag,
+                        filterTitle: r.title,
+                        hint: r.hint,
+                        reserved,
+                    });
+                    sources.push({
+                        label: `${live.labels[k]} · טבלה`,
+                        table: table?.name ?? (p.defaultTable || null),
+                        via: tableVia[k] ?? '—',
+                        ok: !!table || reserved,
+                        note: reserved ? `שמור לכרטיסים שנמכרו — «—» עד שתוגדר טבלה (חלונית / ${p.tableSlot})` : null,
+                    });
+                    if (agg.mode !== 'count')
+                        sources.push({
+                            label: `${live.labels[k]} · צבירה`,
+                            table: table?.name ?? null,
+                            field: agg.mode === 'sum' ? (sumField?.name ?? agg.field) || null : null,
+                            via: `${agg.mode === 'sum' ? 'סכום' : 'נותרו'} · ${agg.via}`,
+                            ok: reserved || agg.mode !== 'sum' || !!sumField,
+                            note: agg.mode === 'sum' && !sumField && !reserved ? 'שדה הסכום לא נמצא / לא מופעל לאלמנט' : null,
+                        });
                 }
-                const visibleCfg = cfg.debug?.visibleFields ?? [];
-                const diag: DiagData = {
-                    editMode: cfgSrc.editMode,
-                    config: {
-                        found: !!cfg.debug?.tableName,
-                        via: cfgSrc.via,
-                        tableName: cfg.debug?.tableName ?? null,
-                        hiddenInBase: cfgSrc.hiddenInBase,
-                        status: cfg.status,
-                        rowCount: cfg.debug?.rowCount ?? null,
-                        matched: cfg.debug?.matchedExtension ?? null,
-                        extensionValues: cfg.debug?.extensionValues ?? [],
-                        missingFields: cfg.debug?.tableName ? CONFIG_FIELDS_USED.filter(n => !visibleCfg.includes(n)) : [],
-                        visibleFields: visibleCfg,
-                        title: live.title,
-                        error: configError,
-                    },
-                    tables: {
-                        visible: base.tables.map(t => `${t.name} (${t.fields.length})`),
-                        hidden: schema
-                            ? Object.values(schema)
-                                  .filter(t => !base.getTableByIdIfExists(t.id))
-                                  .map(t => t.name)
-                            : [],
-                    },
-                    pills: diagPills,
+                if (slotsT) {
+                    const sf: [string, Field | null | undefined, string, boolean][] = [
+                        ['משבצות · התחלה (שעון)', f?.start, fp('Source_Field_4'), true],
+                        ['משבצות · סטטוס', f?.status, fp('Source_Field_3'), true],
+                        ['משבצות · סיום', f?.end, fp('Source_Field_5'), false],
+                        ['קישור סרט↔משבצת', f?.films ?? filmSlotsF, fp('Source_Field_6'), false],
+                        ['קישור משבצת↔פרויקט', f?.project ?? projectSlotsF, fp('Source_Field_8'), false],
+                    ];
+                    for (const [label, fld, want, required] of sf)
+                        sources.push({label, table: slotsT.name, field: fld?.name ?? want, via: fld ? 'לפי שם' : 'לא נמצא', ok: !!fld || !required, note: !fld ? (required ? 'חובה לשעון' : 'רשות') : null});
+                }
+                if (aggLines.bad.length)
+                    sources.push({label: 'Option_List_2', table: null, via: 'Extension_Config', ok: false, note: `שורות לא תקינות: ${aggLines.bad.join(', ')} (פורמט: tickets = sum: Tickets Given)`});
+                const status = {
+                    base,
+                    on: isStatusOn(P[STATUS_TOGGLE_KEY]),
+                    configTable: cfgTable,
+                    configVia: cfgSrc.via,
+                    slug: CONFIG_EXTENSION,
+                    variant: '',
+                    status: String(cfg.status),
+                    record: cfg.record,
+                    fieldsUsed: CONFIG_FIELDS_USED,
+                    sources,
+                    filtersTitle: 'אריחים: סינון + צבירה (אותו חישוב שמוצג באריח)',
+                    extraTitle: 'באריח',
+                    error: configError,
+                    notes: [`כותרת בפועל: ${live.title}`],
+                    version: VERSION,
                 };
-                const source = readSource(slotsT, f, slotRecs);
-                const allSlots = f?.status && slotRecs ? readCountSlots(slotRecs, f, live.statuses) : null;
+                const source = readSource(slotsT, f, recsByPill.events);
+                const allSlots = f?.status && recsByPill.events ? readCountSlots(recsByPill.events, f, live.statuses) : null;
                 const input: CountsInput = {
                     slots: allSlots,
                     eventSlots: keepIds(allSlots, pass.events),
                     hasStart: !!f?.start,
-                    films: keepIds(filmRecs ? readLinked(filmRecs, filmSlotsF) : null, pass.films),
+                    films: keepIds(recsByPill.films ? readLinked(recsByPill.films, filmSlotsF) : null, pass.films),
                     filmsLinked: !!(f?.films || filmSlotsF),
-                    projects: keepIds(projectRecs ? readLinked(projectRecs, projectSlotsF) : null, pass.projects),
+                    projects: keepIds(recsByPill.projects ? readLinked(recsByPill.projects, projectSlotsF) : null, pass.projects),
                     projectsLinked: !!(f?.project || projectSlotsF),
-                    invitations: inviteRecs ? countPass(inviteRecs, pass.invitations) : null,
-                    tickets: ticketRecs ? countPass(ticketRecs, pass.tickets) : null,
+                    invitations: null,
+                    tickets: null,
                 };
-                return <Screen source={source} input={input} meta={meta} live={live} diag={diag} />;
+                return <Screen source={source} input={input} preps={preps} live={live} status={status} />;
             }}
         </AllRecs>
     );
@@ -520,10 +639,6 @@ function AllRecs({
     );
 }
 
-function countPass(recs: readonly AtRecord[], pass: ReadonlySet<string> | null): number {
-    return pass ? recs.filter(r => pass.has(r.id)).length : recs.length;
-}
-
 /** Extension_Config Filter_N / Filter_Operator_N / Filter_Value_N (via the hook) → by table. No table/row → empty map. */
 function readConfigFilters(cfg: ExtensionConfig) {
     if (cfg.status !== 'ok' && cfg.status !== 'duplicate') return configFiltersByTable(() => '');
@@ -538,7 +653,7 @@ type PillFilterResult = {
     pass: ReadonlySet<string> | null;
     title: string | null;
     hint: string | null;
-    diag: Omit<DiagPill, 'key' | 'label'>;
+    diag: PillFilterDiag & {matched?: number | null; total?: number | null};
 };
 
 const OP_LABEL = (op: unknown) => FILTER_OPS.find(o => o.value === op)?.label ?? (op ? String(op) : 'ללא סינון');
@@ -567,7 +682,7 @@ function pillFilter(
         const want = defaultTableName(k);
         const inBase = schema ? Object.values(schema).some(t => looseKey(t.name) === looseKey(want)) : false;
         const hint = parseOp(opRaw, 'none') !== 'none' ? `הטבלה ${want} לא מופעלת לאלמנט${inBase ? ' (קיימת בבסיס)' : ''} — הסינון לא הופעל` : null;
-        return {pass: null, title: null, hint, diag: {...baseDiag, table: `${want} ✗`}};
+        return {pass: null, title: null, hint, diag: {...baseDiag, table: want ? `${want} ✗` : null, via: want ? '—' : 'לא הוגדר (שמור)'}};
     }
     try {
         const picked = P[keys.field];
@@ -680,15 +795,15 @@ function clockTitle(t: TargetResult): string {
 function Screen({
     source,
     input,
-    meta,
+    preps,
     live,
-    diag,
+    status,
 }: {
     source: SlotsSource;
     input: CountsInput;
-    meta: Record<PillKey, Pick<PillData, 'filterTitle' | 'hint'>>;
+    preps: readonly PillPrep[];
     live: Live;
-    diag: DiagData;
+    status: Omit<Parameters<typeof StatusPanel>[0], 'filters'>;
 }) {
     const [now, setNow] = useState(Date.now());
     useEffect(() => {
@@ -698,7 +813,15 @@ function Screen({
 
     const t = computeTarget(source, now, live.targetOpts);
     const clock = t.zero ? {days: 0, hours: 0, minutes: 0} : splitDuration(t.targetMs - now);
+    // 'remaining' mode only (opt-in): v0.4.4 phase logic over the filtered sets
     const c = computeCounts(input, t.phase, now);
+    // ONE computed result per pill → the pill AND the «מצב חיבור» row (v0.4.5, the owner 10:29)
+    const pills = buildPills(preps, {films: c.films, events: c.events, projects: c.projects});
+    const byKey = new Map(pills.map(p => [p.key, p]));
+    const pill = (k: PillKey) => {
+        const x = byKey.get(k)!;
+        return {key: k, label: x.label, value: x.value, filterTitle: x.filterTitle, hint: x.hint};
+    };
 
     return (
         <CountdownView
@@ -707,19 +830,12 @@ function Screen({
             unitLabels={live.units}
             clockTitle={clockTitle(t)}
             endedLine={t.phase === 'ended' ? t.label : null}
-            programme={[
-                {key: 'films', ...meta.films, label: live.labels.films, value: c.films},
-                {key: 'events', ...meta.events, label: live.labels.events, value: c.events},
-                {key: 'projects', ...meta.projects, label: live.labels.projects, value: c.projects},
-            ]}
-            people={[
-                {key: 'invitations', ...meta.invitations, label: live.labels.invitations, value: c.invitations},
-                {key: 'tickets', ...meta.tickets, label: live.labels.tickets, value: c.tickets},
-            ]}
+            programme={[pill('films'), pill('events'), pill('projects')]}
+            people={[pill('invitations'), pill('tickets'), pill('sold')]}
             version={VERSION}
             colors={live.colors}
             configNote={live.configNote}
-            diag={diag}
+            statusPanel={<StatusPanel {...status} filters={pills.map(p => p.row)} />}
         />
     );
 }

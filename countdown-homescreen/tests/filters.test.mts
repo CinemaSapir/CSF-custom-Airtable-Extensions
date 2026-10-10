@@ -151,9 +151,10 @@ test('filtering happens BEFORE the phase-aware counts', () => {
 });
 
 test('right-pane keys and Hebrew labels', () => {
-    assert.deepEqual(PILLS.map(p => p.key), ['films', 'events', 'projects', 'invitations', 'tickets']);
+    assert.deepEqual(PILLS.map(p => p.key), ['films', 'events', 'projects', 'invitations', 'tickets', 'sold']);
     assert.deepEqual(propKeys('films'), {
         table: 'films_table', field: 'films_filterField', fieldName: 'films_filterFieldName', op: 'films_filterOp', value: 'films_filterValue',
+        agg: 'films_agg', sumField: 'films_sumField', sumFieldName: 'films_sumFieldName',
     });
     assert.equal(propLabels('סרטים', 'films').field, 'סרטים · שדה סינון');
     assert.equal(propLabels('אירועים', 'events').table, 'אירועים · טבלה (גם מקור הטיימר)');

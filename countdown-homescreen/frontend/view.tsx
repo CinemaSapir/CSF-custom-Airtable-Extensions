@@ -3,7 +3,7 @@
 
 import {CONFIG_DEFAULTS as D, WAVE_COLORS} from './config';
 export {safeHex} from './config';
-import {useState} from 'react';
+import type {ReactNode} from 'react';
 import {formatCount} from './counts';
 
 export type PillData = {
@@ -31,39 +31,8 @@ export type ViewProps = {
     colors?: ViewColors;
     /** Footer hover: where the settings come from. */
     configNote?: string;
-    /** v0.4.3 «מצב חיבור» panel (open by default in edit mode; else click the version footer). */
-    diag?: DiagData;
-};
-
-export type DiagPill = {
-    key: string;
-    label: string;
-    table: string | null;
-    field: string | null;
-    via: string;
-    op: string;
-    values: string[];
-    matched: number | null;
-    total: number | null;
-};
-export type DiagData = {
-    editMode: boolean;
-    config: {
-        found: boolean;
-        via: 'pane' | 'name' | 'none';
-        tableName: string | null;
-        hiddenInBase: boolean;
-        status: string;
-        rowCount: number | null;
-        matched: string | null;
-        extensionValues: string[];
-        missingFields: string[];
-        visibleFields: string[];
-        title: string;
-        error: string | null;
-    };
-    tables: {visible: string[]; hidden: string[]};
-    pills: DiagPill[];
+    /** v0.4.5: shared «מצב חיבור» panel (right-pane toggle, default OFF); rendered under the footer. */
+    statusPanel?: ReactNode;
 };
 
 export type ViewColors = {accent: string; bg: string; wave: readonly string[]};
@@ -105,8 +74,8 @@ export function CountdownView(p: ViewProps) {
                 <span data-slot="version" title={p.configNote}>
                     v{p.version}
                 </span>
-                {p.diag && <DiagToggle diag={p.diag} />}
             </div>
+            {p.statusPanel}
         </div>
     );
 }
@@ -115,119 +84,6 @@ export function CountdownView(p: ViewProps) {
 export function shortHint(hint: string): string {
     const first = hint.split(' · ')[0].split(' — ')[0].replace(/ בטבלה [^ ]+$/, '');
     return /לא מופעל|לא מאופשר|לא נמצא|חסר|לא נבחר|לא מוכר/.test(first) ? first : 'סינון לא הופעל';
-}
-
-const YN = (b: boolean) => (b ? '✓' : '✗');
-
-function DiagToggle({diag}: {diag: DiagData}) {
-    const [open, setOpen] = useState<boolean | null>(null);
-    const isOpen = open ?? diag.editMode;
-    const c = diag.config;
-    const okAll = c.found && !!c.matched && diag.pills.every(x => !x.via.includes('✗'));
-    return (
-        <>
-            {' · '}
-            <button type="button" className="cd-diag-btn" onClick={() => setOpen(!isOpen)} data-slot="diag">
-                מצב חיבור {okAll ? '✓' : '⚠'} {isOpen ? '▴' : '▾'}
-            </button>
-            {isOpen && (
-                <div className="cd-diag" dir="rtl">
-                    <div className="cd-diag-h">מצב חיבור · Extension_Config</div>
-                    <div>
-                        טבלת הגדרות: <b>{YN(c.found)}</b> {c.tableName ? <code>{c.tableName}</code> : null}{' '}
-                        {c.found ? `(נמצאה ${c.via === 'pane' ? 'מהחלונית' : 'לפי שם'})` : c.hiddenInBase ? '— קיימת בבסיס אבל לא מופעלת לאלמנט' : '— לא נמצאה באלמנט'}
-                    </div>
-                    {c.found && (
-                        <div>
-                            שורה תואמת: <b>{YN(!!c.matched)}</b> {c.matched ? <code>Extension = {c.matched}</code> : null} · סטטוס <code>{c.status}</code> ·
-                            שורות בטבלה: {c.rowCount ?? '…'}
-                            {!c.matched && c.extensionValues.length > 0 && (
-                                <>
-                                    {' '}
-                                    · ערכי Extension שנמצאו: <code>{c.extensionValues.map(v => `«${v}»`).join(' ')}</code>
-                                </>
-                            )}
-                        </div>
-                    )}
-                    {c.found && (
-                        <div>
-                            כותרת בפועל: <code>{c.title}</code> · שדות גלויים לאלמנט: {c.visibleFields.length}
-                            {c.missingFields.length > 0 && (
-                                <>
-                                    {' '}
-                                    · <span className="cd-diag-bad">שדות לא מופעלים ({c.missingFields.length}):</span> <code>{compactMissing(c.missingFields)}</code>
-                                </>
-                            )}
-                        </div>
-                    )}
-                    {c.error && (
-                        <div className="cd-diag-bad">
-                            שגיאה בקריאת ההגדרות (מוצגות ברירות מחדל, ניסיון חוזר בעוד 5 ש׳): <code>{c.error}</code>
-                        </div>
-                    )}
-                    <div className="cd-diag-h">סינון אריחים (חלונית ימנית)</div>
-                    <table className="cd-diag-t">
-                        <thead>
-                            <tr>
-                                <th>אריח</th>
-                                <th>טבלה</th>
-                                <th>שדה</th>
-                                <th>מקור</th>
-                                <th>תנאי</th>
-                                <th>ערכים</th>
-                                <th>תואמות / סה״כ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {diag.pills.map(x => (
-                                <tr key={x.key} data-k={x.key}>
-                                    <td>{x.label}</td>
-                                    <td>
-                                        <code>{x.table ?? '—'}</code>
-                                    </td>
-                                    <td>
-                                        <code>{x.field ?? '—'}</code>
-                                    </td>
-                                    <td className={x.via.includes('✗') || x.via.startsWith('שגיאה') ? 'cd-diag-bad' : ''}>{x.via}</td>
-                                    <td>{x.op}</td>
-                                    <td>
-                                        <code>{x.values.length ? x.values.join(' | ') : '—'}</code>
-                                    </td>
-                                    <td className="cd-num">
-                                        {x.matched ?? '—'} / {x.total ?? '—'}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <div className="cd-diag-small">
-                        טבלאות גלויות לאלמנט: <code>{diag.tables.visible.join(' · ') || '—'}</code>
-                        {diag.tables.hidden.length > 0 && (
-                            <>
-                                {' '}
-                                · <span className="cd-diag-bad">בבסיס אך לא מופעלות:</span> <code>{diag.tables.hidden.join(' · ')}</code>
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
-        </>
-    );
-}
-
-/** Filter_1..10 / Filter_Operator_… / Filter_Value_… collapsed so the line stays readable. */
-function compactMissing(names: string[]): string {
-    const groups = new Map<string, number[]>();
-    const rest: string[] = [];
-    for (const n of names) {
-        const m = /^(.*)_(\d+)$/.exec(n);
-        if (m) {
-            if (!groups.has(m[1])) groups.set(m[1], []);
-            groups.get(m[1])!.push(Number(m[2]));
-        } else rest.push(n);
-    }
-    const g = [...groups].map(([k, ns]) => (ns.length === 1 ? `${k}_${ns[0]}` : `${k}_${Math.min(...ns)}–${Math.max(...ns)}${ns.length < Math.max(...ns) - Math.min(...ns) + 1 ? '*' : ''}`));
-    return [...rest, ...g].join(', ');
 }
 
 function ClockUnit({i, n, label}: {i: number; n: string; label: string}) {
@@ -304,16 +160,6 @@ function makeCss(c: ViewColors): string {
 .cd-pill:hover .cd-plabel, .cd-pill.demo-hover .cd-plabel { color:#3f7f8c; }
 .cd-footer { padding-top:14px; font-size:11px; color:${MUT}; direction:ltr; }
 .cd-footer > span { opacity:.7; }
-.cd-diag-btn { font:inherit; font-size:11px; color:${MUT}; background:none; border:0; padding:0 2px; cursor:pointer; text-decoration:underline dotted; opacity:.8; }
-.cd-diag { direction:rtl; text-align:right; margin:8px auto 0; max-width:1100px; background:#fff; border:1px solid ${LINE}; border-radius:10px;
-  padding:10px 14px; font-size:12.5px; line-height:1.55; color:${INK}; }
-.cd-diag code { direction:ltr; unicode-bidi:isolate; font:11.5px Consolas,"DejaVu Sans Mono",monospace; background:#f6f3ee; border-radius:4px; padding:0 4px; }
-.cd-diag-h { font-weight:700; margin:6px 0 2px; }
-.cd-diag-bad { color:#a8452f; font-weight:600; }
-.cd-diag-small { margin-top:6px; font-size:11.5px; color:${MUT}; }
-.cd-diag-t { border-collapse:collapse; width:100%; margin-top:2px; }
-.cd-diag-t th, .cd-diag-t td { border-bottom:1px solid ${LINE}; padding:3px 6px; text-align:right; vertical-align:top; }
-.cd-diag-t th { font-weight:600; color:${MUT}; font-size:11.5px; }
 
 @media (max-width: 980px) {
   .cd-n { font-size:92px; } .cd-colon { font-size:72px; } .cd-unit { min-width:124px; }

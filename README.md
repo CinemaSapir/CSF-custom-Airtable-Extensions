@@ -4,15 +4,16 @@ Source code for the Cinema South Festival (CSF) custom Airtable extensions, one 
 
 | Folder | Extension | Version | What it does |
 |---|---|---|---|
-| `countdown-homescreen/` | Countdown homescreen | v0.4.4 | Home-screen countdown to the festival with live record-count pills (per-pill filters) and a «מצב חיבור» connection-status panel. |
-| `timeline/` | Timeline | v0.2.6 | Multi-table festival timeline: columns per table, drag-create / move / resize with undo, cross-section window + band (names only, vertical when crowded), identical per-column header controls (⠿ · filter · ⇤ · ⋯ · ✕). |
-| `lists-ui/` | Lists UI («רשימות») | v0.6.0 | Interface extension for working lists: home, list page, compact and dynamic list views, sharing. |
-| `people-roles/` | People & Roles («אנשים ותפקידים») | v0.3.0 | Phone book plus people/role/assignment editing with duplicate-phone warnings and undo. |
-| `bulk-sheet/` | Bulk sheet («קופי פייסט - הזנה מרובה») | v0.5.0 | Spreadsheet-style copy-paste bulk entry into a table, in batches. |
+| `countdown-homescreen/` | Countdown homescreen | v0.4.5 | Home-screen countdown to the festival with live record-count pills (per-pill filters) and a «מצב חיבור» connection-status panel. |
+| `timeline/` | Timeline | v0.2.7 | Multi-table festival timeline: columns per table, drag-create / move / resize with undo, cross-section window + band (names only, vertical when crowded), identical per-column header controls (⠿ · filter · ⇤ · ⋯ · ✕). |
+| `lists-ui/` | Lists UI («רשימות») | v0.6.1 | Interface extension for working lists: home, list page, compact and dynamic list views, sharing. |
+| `people-roles/` | People & Roles («אנשים ותפקידים») | v0.3.1 | Phone book plus people/role/assignment editing with duplicate-phone warnings and undo. |
+| `bulk-sheet/` | Bulk sheet («קופי פייסט - הזנה מרובה») | v0.5.1 | Spreadsheet-style copy-paste bulk entry into a table, in batches. |
 | `hospitality/` | Hospitality glass | v1.0.0 (package) | Read-only hospitality view: one lens at a time (day / person), no writes. Not wired to Extension_Config yet. |
 | `docs/program-by-day/` | «פרוגרמה - לפי יום» (Omni page) | – | Not a custom extension: the Omni prompt and config map that wire the Omni-built page to Extension_Config. |
+| `config/status-panel/` | Shared «מצב חיבור» status panel | v1 | `StatusPanel.tsx` + `statusCore.ts` (+ test): the connection-status panel shared by countdown, timeline, lists-ui, people-roles and bulk-sheet — shows whether Extension_Config and its row were found, and per element which table/field/filter resolved and how many records match. Toggled from the right pane. |
 | `config/` | Extension_Config | design v3 | Table design, Omni prompts (create + populate), the shared `useExtensionConfig.ts` hook, `SHARED-UI-TOKENS.css`, populate CSVs. |
-| `maps/` | Config maps | 2026-10-10 | `<slug>-config-map.png` per extension + `GALLERY-2026-10-10.png/.pdf`. Each extension folder also has its own `config-map.png`. |
+| `maps/` | Config maps | 2026-10-10 | `<slug>-config-map.png` per extension + `GALLERY-2026-10-10.png/.pdf`. Each extension folder also has its own `config-map.png`. Maps were refreshed on 2026-10-10 for the status-panel releases; `GALLERY-2026-10-10` predates them. |
 
 Block ids, base credentials and Airtable CLI state (`.block/`, `.airtableblocksrc.json`) are deliberately **not** in this repo.
 

@@ -2,7 +2,7 @@
 // Precedence (the owner 23:48): element RIGHT PANE first → Extension_Config row (Filter_N, only if that table exists)
 // → code default = no filter. A filter whose field is missing is IGNORED (pill counts unfiltered + small hint); never throws.
 
-export type PillKey = 'films' | 'events' | 'projects' | 'invitations' | 'tickets';
+export type PillKey = 'films' | 'events' | 'projects' | 'invitations' | 'tickets' | 'sold';
 
 export type FilterOp = 'none' | 'is' | 'is_not' | 'contains' | 'is_empty' | 'is_not_empty' | 'is_checked' | 'is_not_checked';
 
@@ -26,7 +26,10 @@ export const PILLS: ReadonlyArray<{key: PillKey; tableSlot: string; defaultTable
     {key: 'events', tableSlot: 'Source_Table_3', defaultTable: 'Slots_Events', labelSlot: 'Content_Text_4'},
     {key: 'projects', tableSlot: 'Source_Table_5', defaultTable: 'Projects', labelSlot: 'Content_Text_5'},
     {key: 'invitations', tableSlot: 'Source_Table_2', defaultTable: 'Invitations', labelSlot: 'Content_Text_2'},
-    {key: 'tickets', tableSlot: 'Source_Table_1', defaultTable: 'Tickets', labelSlot: 'Content_Text_1'},
+    // v0.4.5: there is NO Tickets table — invitation tickets = SUM of Invitations.«Tickets Given» (Source_Field_1).
+    {key: 'tickets', tableSlot: 'Source_Table_1', defaultTable: 'Invitations', labelSlot: 'Content_Text_1'},
+    // v0.4.5: reserved for future SOLD tickets (another table / field). No default table → «—» until it's set.
+    {key: 'sold', tableSlot: 'Source_Table_6', defaultTable: '', labelSlot: 'Content_Text_10'},
 ];
 
 /** Custom-property keys per pill (stable — stored in the element's config; never rename). */
@@ -36,6 +39,10 @@ export const propKeys = (k: PillKey) => ({
     fieldName: `${k}_filterFieldName`,
     op: `${k}_filterOp`,
     value: `${k}_filterValue`,
+    // v0.4.5 aggregation
+    agg: `${k}_agg`,
+    sumField: `${k}_sumField`,
+    sumFieldName: `${k}_sumFieldName`,
 });
 
 /** Right-pane labels (Hebrew). */
@@ -45,6 +52,9 @@ export const propLabels = (pillLabel: string, key: PillKey) => ({
     fieldName: `${pillLabel} · שדה סינון (שם השדה)`,
     op: `${pillLabel} · תנאי סינון`,
     value: `${pillLabel} · ערך סינון (כמה ערכים: א|ב)`,
+    agg: `${pillLabel} · צבירה (ספירה / סכום)`,
+    sumField: `${pillLabel} · שדה לסכום`,
+    sumFieldName: `${pillLabel} · שדה לסכום (שם השדה)`,
 });
 
 export type FilterSpec = {
