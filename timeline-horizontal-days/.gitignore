@@ -1,0 +1,6 @@
+node_modules
+.block/remote.json
+.airtableblocksrc
+harness/out
+tests/.out
+.tmp
