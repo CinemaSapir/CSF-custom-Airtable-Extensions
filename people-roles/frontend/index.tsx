@@ -29,9 +29,10 @@ import './style.css';
 import {CONFIG_DISPLAY_NAME, CONFIG_SLUG, DEFAULTS, DOCS, type PRText, useCfg} from './cfg';
 import {CONFIG_TABLE_NAME, ExtensionConfigProvider, findConfigTable} from './useExtensionConfig';
 import {StatusPanel} from './StatusPanel';
-import {STATUS_TOGGLE_KEY, isStatusOn, statusToggleProperty, type StatusSource} from './statusCore';
+import {MappingPanel} from './MappingPanel';
+import {MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusSource} from './statusCore';
 
-const VERSION = '0.3.1';
+const VERSION = '0.3.2';
 
 // ---------------------------------------------------------------------------
 // IDs (verified 2026-09-25 against DEMO appiN9MrP73g6R9hi with get_table_schema)
@@ -306,6 +307,8 @@ function getCustomProperties(base: Base) {
         {key: 'configVariant', label: 'גרסת עמוד (Variant) – ריק = ברירת מחדל', type: 'string' as const, defaultValue: ''},
         // v0.3.1: shared «מצב חיבור» panel (default OFF; ON = always shown, published view too)
         statusToggleProperty(),
+        // v0.3.2: shared mapping panel — Extension_Config.Mapping_Image + GitHub_URL (default OFF)
+        mappingToggleProperty(),
     ];
 }
 
@@ -2626,7 +2629,12 @@ function App() {
     const variant = typeof cp.configVariant === 'string' ? cp.configVariant.trim() : '';
     return (
         <ExtensionConfigProvider base={base} configTable={asTable(cp.configTable) ?? undefined} slug={slug} variant={variant} version={VERSION} displayName={CONFIG_DISPLAY_NAME} defaults={DEFAULTS} docs={DOCS}>
-            <Root cp={cp} status={<Status cp={cp} slug={slug} variant={variant} />} />
+            <Root cp={cp} status={
+                    <>
+                        <Status cp={cp} slug={slug} variant={variant} />
+                        <Mapping cp={cp} slug={slug} />
+                    </>
+                } />
         </ExtensionConfigProvider>
     );
 }
@@ -2777,6 +2785,18 @@ function Status(props: {cp: {[key: string]: unknown}; slug: string; variant: str
                 notes={[...(cfgOk ? [] : ['אין שורת הגדרות פעילה → ברירות מחדל בקוד (המסך לא משתנה)']), 'אין סינונים קבועים בתוסף הזה (חיפוש בלבד)']}
                 version={VERSION}
             />
+        </div>
+    );
+}
+
+/** v0.3.2: shared mapping panel (status-panel v2) — the matched row's Mapping_Image (Variant row → default row) + GitHub_URL. Read-only. */
+function Mapping(props: {cp: {[key: string]: unknown}; slug: string}) {
+    const base = useBase();
+    const {cfg} = useCfg();
+    if (!isMappingOn(props.cp[MAPPING_TOGGLE_KEY])) return null;
+    return (
+        <div dir="rtl" style={{padding: '0 12px 12px'}}>
+            <MappingPanel on configTable={asTable(props.cp.configTable) ?? findConfigTable(base)} record={cfg?.record ?? null} variantRecord={cfg?.variantRecord ?? null} slug={props.slug} />
         </div>
     );
 }

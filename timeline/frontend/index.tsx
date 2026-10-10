@@ -6,7 +6,8 @@ import {CONFIG_SLUG, CONFIG_VARIANT, TABLE_LIST, TIMELINE_DEFAULTS, TIMELINE_DOC
 import {CONFIG_TABLE_NAME, ExtensionConfigProvider, looseName, optionLabel, useExtensionConfig} from './useExtensionConfig';
 import {Timeline, type ColumnDef} from './Timeline';
 import {StatusPanel} from './StatusPanel';
-import {STATUS_TOGGLE_KEY, isStatusOn, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
+import {MappingPanel} from './MappingPanel';
+import {MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
 import type {Writer} from './EditUi';
 import {mapFields, type FieldLike} from './logic/edit';
 import {FILTER_SLOTS, buildDays, passCol, distinctVals, filterKind, israelParts, parseOp, parseRef, parseRes, pickRes, splitVals, tzModeOf, type Day, type FilterOp, type ColFilters} from './logic/core';
@@ -44,6 +45,8 @@ function getCustomProperties(base: Base) {
         {key: 'configVariant', label: 'גרסת עמוד (Variant)', type: 'string' as const, defaultValue: CONFIG_VARIANT},
         // shared «מצב חיבור» panel (status-panel v1): default OFF; ON = always shown (published view too)
         statusToggleProperty(),
+        // v0.2.9: shared mapping panel — Extension_Config.Mapping_Image + GitHub_URL (default OFF)
+        mappingToggleProperty(),
     ];
     for (const sp of TABLE_SPECS) {
         const t = findLoose(base.tables, sp.aliases);
@@ -413,7 +416,9 @@ function TimelineStatus(props: {
     const cfg = useExtensionConfig();
     const cp = useContext(CpCtx);
     const globalConfig = useGlobalConfig();
-    if (!isStatusOn(cp[STATUS_TOGGLE_KEY])) return null;
+    const statusOn = isStatusOn(cp[STATUS_TOGGLE_KEY]);
+    const mappingOn = isMappingOn(cp[MAPPING_TOGGLE_KEY]);
+    if (!statusOn && !mappingOn) return null;
     let rawCfg: unknown = null;
     try {
         rawCfg = globalConfig.get('configTable');
@@ -456,7 +461,7 @@ function TimelineStatus(props: {
         <div dir="rtl" style={{position: 'fixed', left: 8, bottom: 28, zIndex: 50, width: 'min(980px, calc(100vw - 16px))', maxHeight: '62vh', overflow: 'auto', boxShadow: '0 4px 18px rgba(0,0,0,.18)', borderRadius: 8, background: '#fff'}}>
             <StatusPanel
                 base={base}
-                on
+                on={statusOn}
                 configTable={cfgTable}
                 configVia={cfgVia}
                 slug={CONFIG_SLUG}
@@ -472,6 +477,8 @@ function TimelineStatus(props: {
                 notes={[`טבלאות מבוקשות (Option_List_6): ${st.wanted.join(' · ') || '—'}`]}
                 version={VERSION}
             />
+            {/* v0.2.9: Mapping_Image of the matched row (Variant → default) + GitHub_URL, same dock, read-only */}
+            <MappingPanel on={mappingOn} configTable={cfgTable} record={cfg.record} variantRecord={cfg.variantRecord} slug={CONFIG_SLUG} />
         </div>
     );
 }

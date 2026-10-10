@@ -106,7 +106,39 @@ if (QS.has('crowd')) {
             t.records.push({id: 'recCrowd' + k, cells: {...src.cells, Slot: n, Start: a, End: b}});
         });
 }
-const tables = (fixture as {tables: TableJ[]}).tables.map(makeTable);
+// v0.2.9: ?cfgmap=1 adds an Extension_Config table (default row with Mapping_Image + GitHub_URL, empty «timeline» Variant row →
+// the mapping panel falls back to the default row). ?mf=0 → the two fields are not enabled on the element. Other runs: unchanged.
+const cfgJ: TableJ[] = QS.get('cfgmap')
+    ? [
+          {
+              id: 'tblEXTCONFIG0001',
+              name: 'Extension_Config',
+              fields: [
+                  {id: 'fldCfgExt', name: 'Extension', type: 'singleLineText'},
+                  {id: 'fldCfgVar', name: 'Variant', type: 'singleLineText'},
+                  ...(QS.get('mf') === '0'
+                      ? []
+                      : [
+                            {id: 'fldCfgMap', name: 'Mapping_Image', type: 'multipleAttachments'},
+                            {id: 'fldCfgGit', name: 'GitHub_URL', type: 'url'},
+                        ]),
+              ] as FieldJ[],
+              records: [
+                  {
+                      id: 'recCfgDefault',
+                      cells: {
+                          Extension: 'program-by-day',
+                          Variant: '',
+                          Mapping_Image: [{id: 'attTL1', url: 'http://127.0.0.1:8765/timeline-map.png', filename: 'timeline-v0.2.7-config-map.png', type: 'image/png', thumbnails: {large: {url: 'http://127.0.0.1:8765/timeline-map-large.png'}}}],
+                          GitHub_URL: 'https://github.com/csf-demo/CSF-custom-Airtable-Extensions/tree/main/timeline',
+                      },
+                  },
+                  {id: 'recCfgTimeline', cells: {Extension: 'program-by-day', Variant: 'timeline'}},
+              ],
+          },
+      ]
+    : [];
+const tables = [...(fixture as {tables: TableJ[]}).tables, ...cfgJ].map(makeTable);
 const base = {id: 'appHarness', name: 'CSF DEMO (harness)', tables, getTableByNameIfExists: (n: string) => tables.find(t => t.name === n) ?? null};
 
 export const useBase = () => base;
@@ -127,6 +159,7 @@ export const useCustomProperties = (get?: (b: unknown) => Array<{key: string; ty
     (globalThis as {__TL_PROPS?: unknown}).__TL_PROPS = props.map(p => ({key: p.key, type: p.type, table: p.table?.name}));
     // v0.2.7: ?status=1 turns the shared «מצב חיבור» panel on (right-pane boolean showStatusPanel)
     if (QS.get('status')) v.showStatusPanel = true;
+    if (QS.get('mapping')) v.showMappingPanel = true; // v0.2.9
     const pf = QS.get('pf');
     if (pf) {
         const [ref, op = 'any', vals = ''] = pf.split('~');

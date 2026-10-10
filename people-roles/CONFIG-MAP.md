@@ -95,3 +95,12 @@ Names, roles, phones, emails, partners = record data from People / Roles / Assig
 
 - All 10 `Button_Text` are used; a phone book with more actions would need `Button_Text_11+` (not needed today).
 - ~25 status / toast strings stay in code: v3 has no «message» group and `Content_Text_15` is the only free content slot left.
+
+## Status + mapping panels (shared `config/status-panel`, status-panel v2) — v0.3.2
+
+| Right pane (boolean, default OFF) | Shows |
+|---|---|
+| `showStatusPanel` «show מצב חיבור · Extension_Config» | «מצב חיבור»: config table found, row matched (Extension/Variant), fields visible to the element, per-source table/field resolution (+ filters where relevant), and whether `Mapping_Image` / `GitHub_URL` are enabled and filled. |
+| `showMappingPanel` «show mapping · Extension_Config.Mapping_Image» | The matched row's `Mapping_Image` attachments (Variant row → default row) as large thumbnails; click = full size in a lightbox, «פתיחה בלשונית חדשה» = full URL; file name; link to `GitHub_URL` when filled. Clear Hebrew hint when the field isn't enabled on the element or is empty. |
+
+`Mapping_Image` (attachment) and `GitHub_URL` (URL) are human-maintained, read-only reference fields. They are **not** part of the 269-slot `FIELD_ORDER` (hook v3.2 lists them as `EXTRA_FIELDS` / `KNOWN_FIELDS`), and the code never writes them. To use them, enable both fields of `Extension_Config` on the element.

@@ -1,9 +1,11 @@
-// CSF shared «מצב חיבור» status panel — view (status-panel v1). Same file in every extension; see statusCore.ts.
+// CSF shared «מצב חיבור» status panel — view (status-panel v2: + Mapping_Image / GitHub_URL line). Same file in every extension; see statusCore.ts.
 // Read-only: useRecords on the config table (only while the panel is ON) to report row count / Extension values.
 import {useState} from 'react';
 import {useRecords} from '@airtable/blocks/interface/ui';
 import type {Base, Record as AtRecord, Table} from '@airtable/blocks/interface/models';
+import {readMapping} from './MappingPanel';
 import {
+    GITHUB_HINT,
     STATUS_PANEL_VERSION,
     compactNames,
     looseKey,
@@ -13,6 +15,7 @@ import {
     variantKey,
     yn,
     type ConfigRow,
+    type MappingResult,
     type RowSummary,
     type StatusFilter,
     type StatusSource,
@@ -46,7 +49,7 @@ export type StatusPanelProps = {
 
 export function StatusPanel(p: StatusPanelProps) {
     if (!p.on) return null;
-    return p.configTable ? <WithRows {...p} table={p.configTable} /> : <Body {...p} rows={null} />;
+    return p.configTable ? <WithRows {...p} table={p.configTable} /> : <Body {...p} rows={null} mapping={null} />;
 }
 
 function WithRows(p: StatusPanelProps & {table: Table}) {
@@ -61,7 +64,8 @@ function WithRows(p: StatusPanelProps & {table: Table}) {
         }
     };
     const rows: ConfigRow[] | null = recs ? recs.map(r => ({id: r.id, extension: str(r, ext), variant: str(r, vf)})) : null;
-    return <Body {...p} rows={rows} hasExtField={!!ext} />;
+    const mapping = readMapping(p.table, recs ?? null, p.record, p.variantRecord, p.slug);
+    return <Body {...p} rows={rows} hasExtField={!!ext} mapping={mapping} />;
 }
 
 type EditSchema = Record<string, {id: string; name: string}>;
@@ -76,7 +80,7 @@ function editSchema(base: Base): EditSchema | null {
     }
 }
 
-function Body(p: StatusPanelProps & {rows: ConfigRow[] | null; hasExtField?: boolean}) {
+function Body(p: StatusPanelProps & {rows: ConfigRow[] | null; hasExtField?: boolean; mapping: MappingResult | null}) {
     const [open, setOpen] = useState(true);
     const t = p.configTable;
     const visible = t ? t.fields.map(f => f.name) : [];
@@ -138,6 +142,19 @@ function Body(p: StatusPanelProps & {rows: ConfigRow[] | null; hasExtField?: boo
                                 <div className="csfst-bad">
                                     שדות שהתוסף קורא ולא מופעלים ({missing.length}): <code>{compactNames(missing)}</code>
                                 </div>
+                            )}
+                        </div>
+                    )}
+                    {p.mapping && p.mapping.state !== 'no-table' && (
+                        <div>
+                            קבצי מיפוי (<code>Mapping_Image</code>):{' '}
+                            <b className={p.mapping.state === 'ok' ? 'csfst-ok' : 'csfst-bad'}>{yn(p.mapping.state === 'ok')}</b> {p.mapping.hint} · <code>GitHub_URL</code>:{' '}
+                            {p.mapping.github ? (
+                                <a href={p.mapping.github} target="_blank" rel="noopener noreferrer">
+                                    ✓ קישור
+                                </a>
+                            ) : (
+                                <span className={p.mapping.githubState === 'no-field' ? 'csfst-bad' : ''}>{GITHUB_HINT[p.mapping.githubState]}</span>
                             )}
                         </div>
                     )}

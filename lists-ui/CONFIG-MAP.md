@@ -95,3 +95,12 @@ List names, descriptions, items, posters, owners = record data (Lists / List Ite
 ## Didn't fit / gaps
 
 - None blocking. The 13 newer list kinds (Itinerary, Trips, Suppliers, …) take their Hebrew names from `kinds.ts`; making those editable would need an `Option_List` mapping (`Option_List_1` = «tableName = label» lines), possible in v3 but not wired.
+
+## Status + mapping panels (shared `config/status-panel`, status-panel v2) — v0.6.2
+
+| Right pane (boolean, default OFF) | Shows |
+|---|---|
+| `showStatusPanel` «show מצב חיבור · Extension_Config» | «מצב חיבור»: config table found, row matched (Extension/Variant), fields visible to the element, per-source table/field resolution (+ filters where relevant), and whether `Mapping_Image` / `GitHub_URL` are enabled and filled. |
+| `showMappingPanel` «show mapping · Extension_Config.Mapping_Image» | The matched row's `Mapping_Image` attachments (Variant row → default row) as large thumbnails; click = full size in a lightbox, «פתיחה בלשונית חדשה» = full URL; file name; link to `GitHub_URL` when filled. Clear Hebrew hint when the field isn't enabled on the element or is empty. |
+
+`Mapping_Image` (attachment) and `GitHub_URL` (URL) are human-maintained, read-only reference fields. They are **not** part of the 269-slot `FIELD_ORDER` (hook v3.2 lists them as `EXTRA_FIELDS` / `KNOWN_FIELDS`), and the code never writes them. To use them, enable both fields of `Extension_Config` on the element.

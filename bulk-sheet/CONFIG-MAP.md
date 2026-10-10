@@ -81,3 +81,12 @@ Cell values typed or pasted by the user. Existing People / Roles / Assignments a
 
 - **Validation messages:** about 30 strings in logic.ts. Moving them would need a «messages» group (or `Advanced_JSON` keys). That's possible with `Advanced_JSON` in v3, but not wired.
 - **Pre-existing in v0.4.3 (not changed):** the Shift+Arrow range-select branch can never run (ESLint `no-dupe-else-if`; plain Arrow keys are caught first). In v0.5.0 the lint error is silenced with a note so behaviour stays identical. Fixing it is a separate change.
+
+## Status + mapping panels (shared `config/status-panel`, status-panel v2) — v0.5.2
+
+| Right pane (boolean, default OFF) | Shows |
+|---|---|
+| `showStatusPanel` «show מצב חיבור · Extension_Config» | «מצב חיבור»: config table found, row matched (Extension/Variant), fields visible to the element, per-source table/field resolution (+ filters where relevant), and whether `Mapping_Image` / `GitHub_URL` are enabled and filled. |
+| `showMappingPanel` «show mapping · Extension_Config.Mapping_Image» | The matched row's `Mapping_Image` attachments (Variant row → default row) as large thumbnails; click = full size in a lightbox, «פתיחה בלשונית חדשה» = full URL; file name; link to `GitHub_URL` when filled. Clear Hebrew hint when the field isn't enabled on the element or is empty. |
+
+`Mapping_Image` (attachment) and `GitHub_URL` (URL) are human-maintained, read-only reference fields. They are **not** part of the 269-slot `FIELD_ORDER` (hook v3.2 lists them as `EXTRA_FIELDS` / `KNOWN_FIELDS`), and the code never writes them. To use them, enable both fields of `Extension_Config` on the element.

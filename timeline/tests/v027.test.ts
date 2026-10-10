@@ -18,7 +18,9 @@ test('toggle: exact label, boolean, default OFF', () => {
 });
 test('index: toggle in the right pane, panel only when ON, not tied to edit mode', () => {
     assert.match(src, /statusToggleProperty\(\)/);
-    assert.match(src, /if \(!isStatusOn\(cp\[STATUS_TOGGLE_KEY\]\)\) return null;/);
+    // v0.2.9: the dock also hosts the mapping panel → null only when BOTH toggles are OFF
+    assert.match(src, /const statusOn = isStatusOn\(cp\[STATUS_TOGGLE_KEY\]\);/);
+    assert.match(src, /if \(!statusOn && !mappingOn\) return null;/);
     assert.doesNotMatch(src.slice(src.indexOf('function TimelineStatus')), /isEditMode|editMode/);
 });
 test('index: filter rows use the SAME colDefaults + passCol as the columns', () => {

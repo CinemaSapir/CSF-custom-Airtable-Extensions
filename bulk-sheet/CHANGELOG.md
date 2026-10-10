@@ -1,5 +1,8 @@
 # Bulk sheet «קופי פייסט - הזנה מרובה» — changelog (box copy)
 
+## v0.5.2 — 2026-10-10
+- Right-pane «show mapping · Extension_Config.Mapping_Image» (default OFF): shared MappingPanel (status-panel v2) shows the matched row's Mapping_Image attachments (Variant row → default row; large thumbnails, click = lightbox, full URL, file name) + GitHub_URL link. Hook v3.2: Mapping_Image / GitHub_URL are read-only extras outside the 269 FIELD_ORDER. «מצב חיבור» reports both fields (Hebrew hint when not enabled / empty).
+
 ## v0.5.1 — 2026-10-10
 - Shared «מצב חיבור» status panel (status-panel v1, same files as countdown-homescreen v0.4.5): right-pane boolean «show מצב חיבור · Extension_Config», default OFF; ON = always shown (published view too). Shows config table, matched row (Extension/Variant), fields visible to the element + slots read but not enabled, People/Roles/Assignments table resolution and the 11 written fields (by id → by name). Read-only.
 

@@ -45,7 +45,8 @@ import {CountdownView, safeHex, type ViewColors} from './view';
 import {AGG_OPS, buildPills, cellNumber, parseAggList, pickAgg, type AggMode, type PillFilterDiag, type PillPrep} from './aggregate';
 
 import {StatusPanel} from './StatusPanel';
-import {STATUS_TOGGLE_KEY, isStatusOn, statusToggleProperty, type StatusSource} from './statusCore';
+import {MappingPanel} from './MappingPanel';
+import {MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusSource} from './statusCore';
 import {
     FILTER_OPS,
     PILLS,
@@ -121,7 +122,7 @@ function getCustomProperties(base: Base) {
             type: 'table' as const,
             defaultValue: cfgT ?? undefined,
         };
-        return [cfgProp, statusToggleProperty(), ...PILLS.flatMap(p => {
+        return [cfgProp, statusToggleProperty(), mappingToggleProperty(), ...PILLS.flatMap(p => {
             const keys = propKeys(p.key);
             const labels = propLabels(PILL_LABEL[p.key], p.key);
             const t = p.defaultTable ? findTable(base, p.defaultTable, PILL_TABLE_ALIASES[p.key]) : null;
@@ -590,6 +591,7 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
                     variant: '',
                     status: String(cfg.status),
                     record: cfg.record,
+                    variantRecord: cfg.variantRecord,
                     fieldsUsed: CONFIG_FIELDS_USED,
                     sources,
                     filtersTitle: 'אריחים: סינון + צבירה (אותו חישוב שמוצג באריח)',
@@ -611,7 +613,7 @@ function CountdownScreen({P, cfgSrc, configError, cfgTable}: {P: {[key: string]:
                     invitations: null,
                     tickets: null,
                 };
-                return <Screen source={source} input={input} preps={preps} live={live} status={status} />;
+                return <Screen source={source} input={input} preps={preps} live={live} status={status} mappingOn={isMappingOn(P[MAPPING_TOGGLE_KEY])} />;
             }}
         </AllRecs>
     );
@@ -798,12 +800,15 @@ function Screen({
     preps,
     live,
     status,
+    mappingOn,
 }: {
     source: SlotsSource;
     input: CountsInput;
     preps: readonly PillPrep[];
     live: Live;
     status: Omit<Parameters<typeof StatusPanel>[0], 'filters'>;
+    /** v0.4.6: right-pane «show mapping · Extension_Config.Mapping_Image» */
+    mappingOn: boolean;
 }) {
     const [now, setNow] = useState(Date.now());
     useEffect(() => {
@@ -835,7 +840,12 @@ function Screen({
             version={VERSION}
             colors={live.colors}
             configNote={live.configNote}
-            statusPanel={<StatusPanel {...status} filters={pills.map(p => p.row)} />}
+            statusPanel={
+                <>
+                    <StatusPanel {...status} filters={pills.map(p => p.row)} />
+                    <MappingPanel on={mappingOn} configTable={status.configTable} record={status.record} variantRecord={status.variantRecord} slug={status.slug} />
+                </>
+            }
         />
     );
 }

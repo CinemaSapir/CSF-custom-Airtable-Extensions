@@ -134,6 +134,10 @@ export const F = {
     notes: 'Notes',
 } as const;
 
+/** v3.2 (2026-10-10): human-maintained reference fields, read-only (the code never writes them). Deliberately NOT part of the
+ *  269-slot FIELD_ORDER, so the Omni prompt order, FIELD_ORDER.length and the Slot_Map sort stay exactly as they were. */
+export const EXTRA_FIELDS = {mappingImage: 'Mapping_Image', githubUrl: 'GitHub_URL'} as const;
+
 const triple = (n: number, ...prefixes: string[]) =>
     Array.from({length: n}, (_, i) => prefixes.map(p => (p.includes('#') ? p.replace('#', String(i + 1)) : `${p}_${i + 1}`))).flat();
 
@@ -164,6 +168,8 @@ export const FIELD_ORDER: readonly string[] = [
     // 12 free (1)
     F.notes,
 ];
+/** Every field name the hook knows: the 269 slots in table order, then the v3.2 read-only extras (appended, never sorted in). */
+export const KNOWN_FIELDS: readonly string[] = [...FIELD_ORDER, ...Object.values(EXTRA_FIELDS).filter(n => !FIELD_ORDER.includes(n))];
 
 type Kind = 'text' | 'table' | 'ref' | 'select' | 'options' | 'date' | 'number' | 'toggle' | 'duration' | 'attachment' | 'json';
 function kindOf(slot: string): Kind {
@@ -271,6 +277,14 @@ export type ExtensionConfig = {
     ref: (slot: RefSlot) => ResolvedRef;
     options: (slot: OptionSlot) => OptionRow[];
     attachments: (slot: AttachmentSlot) => Array<{url: string; filename: string}>;
+    /** v3.2: Mapping_Image (Variant row → default row) + GitHub_URL, read-only. imageField/githubField = field visible to the element */
+    mapping: () => {
+        files: Array<{url: string; filename: string; thumb: string | null; type: string}>;
+        from: 'variant' | 'default' | null;
+        github: string;
+        imageField: boolean;
+        githubField: boolean;
+    };
     json: <T = unknown>() => T | null;
     /** Filter_1–10 then Advanced_JSON "filters" (n = 11…) */
     filters: () => FilterSpec[];
@@ -738,6 +752,30 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
     };
     const ref = (slot: RefSlot) => resolveRef(base, rawOf(slot), contextFor(slot));
     const options = (slot: OptionSlot) => parseOptionList(rawOf(slot));
+    const mapping = () => {
+        const has = (n: string) => !!table && !!table.getFieldByNameIfExists(n);
+        const files = (r: AirtableRecord | null) => {
+            const v = cellRaw(r, EXTRA_FIELDS.mappingImage, table);
+            return Array.isArray(v)
+                ? (v as Array<{url?: unknown; filename?: unknown; type?: unknown; thumbnails?: {large?: {url?: unknown}}}>).map(a => ({
+                      url: String(a.url ?? ''),
+                      filename: String(a.filename ?? ''),
+                      thumb: a.thumbnails?.large?.url ? String(a.thumbnails.large.url) : null,
+                      type: String(a.type ?? ''),
+                  }))
+                : [];
+        };
+        const fv = files(variantRecord);
+        const fd = files(record);
+        const gv = cellString(variantRecord, EXTRA_FIELDS.githubUrl, table);
+        return {
+            files: fv.length ? fv : fd,
+            from: fv.length ? ('variant' as const) : fd.length ? ('default' as const) : null,
+            github: gv || cellString(record, EXTRA_FIELDS.githubUrl, table),
+            imageField: has(EXTRA_FIELDS.mappingImage),
+            githubField: has(EXTRA_FIELDS.githubUrl),
+        };
+    };
     const attachments = (slot: AttachmentSlot) => {
         const v = rawCell(slot);
         return Array.isArray(v)
@@ -839,6 +877,7 @@ function useConfigCore(opts: ConfigOptions, table: Table | null, records: readon
         ref,
         options,
         attachments,
+        mapping,
         json,
         filters,
         sorts,

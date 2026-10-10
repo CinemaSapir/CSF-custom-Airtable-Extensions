@@ -24,3 +24,5 @@ See /workspace/csf-demo-v13/PROD-RELEASE-TIMELINE-V010-2026-10-10.md
 - Fix: with compress ON, «עכשיו»/«קפיצה» show the exact target minute (no 12:00 → 12:04 drift).
 
 ## v0.2.8 — the owner 12:17: the cross-section time snaps to the nearest 5 min (13:07 → 13:05, 13:08 → 13:10, x:x7.5 up). One plan (xsPlan) drives the band clock, the axis time tag, the band position (its centre sits on the rounded time) and the minute range the window picks items from. DST-safe (wall-clock minutes), works with compress ON. Includes v0.2.7 (status panel, other worker), first released with this version.
+
+## v0.2.9 — the owner 12:17: right-pane «show mapping · Extension_Config.Mapping_Image» (boolean, default OFF) → shared MappingPanel (status-panel v2) in the same bottom-left dock as «מצב חיבור»: the matched row's Mapping_Image attachments (the «timeline» Variant row falls back to the default row) as large thumbnails, click = lightbox, «פתיחה בלשונית חדשה» = full URL, file name, GitHub_URL link. Read-only. Mapping_Image / GitHub_URL are hook v3.2 extras outside the 269 FIELD_ORDER; «מצב חיבור» reports both (Hebrew hint when not enabled / empty). Built on top of v0.2.8.

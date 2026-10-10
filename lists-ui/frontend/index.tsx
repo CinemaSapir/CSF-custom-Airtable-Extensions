@@ -16,7 +16,7 @@
  *       (persists List Item › Sort Order), add item = choose table then item, remove = unlink (never deletes).
  * Fully Hebrew / RTL on the glass.
  */
-import {useMemo, useState} from 'react';
+import {useMemo, useState, type ReactNode} from 'react';
 import {initializeBlock, useBase, useCustomProperties, useGlobalConfig, useSearchParams, useSession} from '@airtable/blocks/interface/ui';
 import {type Base, type Table} from '@airtable/blocks/interface/models';
 import {
@@ -40,7 +40,8 @@ import {VersionFooter, useToast} from './ui';
 import {CONFIG_DISPLAY_NAME, CONFIG_SLUG, DEFAULTS, DOCS, useCfg} from './cfg';
 import {CONFIG_TABLE_NAME, ExtensionConfigProvider, findConfigTable, type TableSlot} from './useExtensionConfig';
 import {StatusPanel} from './StatusPanel';
-import {STATUS_TOGGLE_KEY, isStatusOn, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
+import {MappingPanel} from './MappingPanel';
+import {MAPPING_TOGGLE_KEY, STATUS_TOGGLE_KEY, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
 import {VERSION} from './model';
 import './style.css';
 
@@ -88,11 +89,13 @@ function getCustomProperties(base: Base) {
         {key: 'configVariant', label: 'גרסת עמוד (Variant) – ריק = לפי התצוגה', type: 'string' as const, defaultValue: ''},
         // v0.6.1: shared «מצב חיבור» panel (default OFF; ON = always shown, published view too)
         statusToggleProperty(),
+        // v0.6.2: shared mapping panel — Extension_Config.Mapping_Image + GitHub_URL (default OFF)
+        mappingToggleProperty(),
     ];
 }
 
 type Mode = 'full' | 'record' | 'mine';
-function Lists(props: {T: Tables; S: SourceEnv; mode: Mode; recordTableId: string | null; recordId: string; status?: StatusInfo}) {
+function Lists(props: {T: Tables; S: SourceEnv; mode: Mode; recordTableId: string | null; recordId: string; status?: StatusInfo; mapping?: ReactNode}) {
     const {T, S, mode, recordTableId, recordId} = props;
     const base = useBase();
     const session = useSession();
@@ -171,6 +174,7 @@ function Lists(props: {T: Tables; S: SourceEnv; mode: Mode; recordTableId: strin
             )}
             {mode === 'full' ? <VersionFooter /> : null}
             {props.status ? <ListsStatus info={props.status} T={T} F={F} lists={model.lists} /> : null}
+            {props.mapping ?? null}
             {newOpen && me ? (
                 <NewListModal
                     base={base}
@@ -260,12 +264,17 @@ function Bound(props: {cp: CP; mode: Mode; slug: string; variant: string}) {
               tables: tvia,
           }
         : undefined;
+    // v0.6.2: shared mapping panel (status-panel v2) — the matched row's Mapping_Image (Variant → default) + GitHub_URL, read-only
+    const mapping = isMappingOn(cp[MAPPING_TOGGLE_KEY]) ? (
+        <MappingPanel on configTable={cfgTable} record={cfg?.record ?? null} variantRecord={cfg?.variantRecord ?? null} slug={props.slug} />
+    ) : null;
     if (!lists || !items) {
         return (
             <div className="app" dir="rtl" lang="he">
                 <h1>{t('Title')}</h1>
                 <p className="msg err">{t('Error_Text_2')}</p>
                 {status ? <ListsStatus info={status} T={null} F={null} lists={null} /> : null}
+                {mapping}
             </div>
         );
     }
@@ -286,7 +295,7 @@ function Bound(props: {cp: CP; mode: Mode; slug: string; variant: string}) {
     const S: SourceEnv = {configTable, lookup, all: () => [...bound.values()]};
     const recordTable = asTable(cp.recordTable) ?? T.films;
     const recordId = typeof cp.recordId === 'string' ? cp.recordId : '';
-    return <Lists T={T} S={S} mode={mode} recordTableId={recordTable?.id ?? null} recordId={recordId} status={status} />;
+    return <Lists T={T} S={S} mode={mode} recordTableId={recordTable?.id ?? null} recordId={recordId} status={status} mapping={mapping} />;
 }
 
 type StatusInfo = {
