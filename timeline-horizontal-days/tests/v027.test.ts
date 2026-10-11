@@ -27,7 +27,7 @@ test('index: toggle in the right pane, panel only when ON, not tied to edit mode
 test('index: filter rows use the SAME colDefaults + passCol as the columns', () => {
     const s = src.slice(src.indexOf('function TimelineStatus'));
     assert.match(s, /hPassCol\(i as never, one\)/); // v0.1.2: one status line per configured filter field
-    assert.match(src, /<TimelineStatus st=\{st\} loaded=\{tableData\} items=\{res\.items\} tableFilters=\{tableFilters\} filterSpecs=\{filterSpecs\} colDefaults=\{colDefaults\} hiddenN=\{hiddenN\} \/>/);
+    assert.match(src, /<TimelineStatus st=\{st\} loaded=\{tableData\} items=\{res\.items\} dayNamed=\{dayNamed\} tableFilters=\{tableFilters\} filterSpecs=\{filterSpecs\} colDefaults=\{colDefaults\} hiddenN=\{hiddenN\} \/>/);
 });
 test('shared files are byte-identical to the status-panel master', () => {
     for (const f of ['statusCore.ts', 'StatusPanel.tsx']) {

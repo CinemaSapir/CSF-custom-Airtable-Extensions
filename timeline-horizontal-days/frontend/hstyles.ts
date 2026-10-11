@@ -120,9 +120,9 @@ body.tl-rowresizing,body.tl-rowresizing *{cursor:row-resize!important;user-selec
 /* #4 cards ≥30% smaller (height 40→28, padding, fonts, tag, eye); 8 per row */
 .htl{--wcH:28px}
 .htl .wg{grid-template-columns:repeat(8,minmax(0,1fr))}
-.htl .wc{padding:2px 4px;gap:3px;border-radius:4px;border-inline-start-width:3px}
+.htl .wc{padding:1px 4px;gap:3px;border-radius:4px;border-inline-start-width:3px}
 .htl .wc .tg{font-size:7px;padding:0 3px;border-radius:2px;margin-top:1px;line-height:10px}
-.htl .wc .nm{font-size:9px;line-height:1.2}
+.htl .wc .nm{font-size:12.5px;line-height:12.5px;font-weight:600;white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis}
 .htl .wc .eye{font-size:8px}
 .htl .wc.more{font-size:9px}
 .htl .wc.now .nm::before{font-size:7px}
@@ -148,4 +148,14 @@ body.tl-rowresizing,body.tl-rowresizing *{cursor:row-resize!important;user-selec
 .htl .cfmenu .cftx input{width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--sdk-grayLight1);border-radius:5px}
 .htl .cfmenu .cfl.dim{opacity:.4;pointer-events:none}
 .htl .cfmenu .cfnv{padding:0 10px 6px}
+
+/* v0.1.3 #1 (the owner 06:57): card stays 28px but the name is back to 12.5px — wraps to 2 lines (clamped), never shrinks */
+/* v0.1.3 #2: the cross-section title + toggle wear the cross-section colour (band / lens = redDark1 / redLight1) */
+.htl .wh b{color:var(--sdk-redDark1)}
+.htl .wh .tog{border-color:var(--sdk-redLight1);background:color-mix(in srgb,var(--sdk-redDark1) 6%,white)}
+.htl .wh .tog.on .sw{background:var(--sdk-redDark1)}
+.htl .wh .tog:hover{border-color:var(--sdk-redDark1);background:color-mix(in srgb,var(--sdk-redDark1) 10%,white)}
+/* v0.1.3 #3: day titles in calm ink (no accent / phase colour); the clock keeps the accent */
+.htl .ban .ctr .big{color:var(--sdk-grayDark1)}
+.htl .hdp{background:white;color:var(--sdk-grayDark1);border-color:var(--sdk-grayLight1);font-weight:700}
 `;

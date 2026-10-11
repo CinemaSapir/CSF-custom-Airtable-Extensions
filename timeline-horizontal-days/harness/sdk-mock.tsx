@@ -42,6 +42,14 @@ function makeTable(t: TableJ) {
     if (dropFd && t.name === 'Festival Days') t.records = t.records.filter(r => r.cells.Date !== dropFd);
     if (fdEmpty && t.name === 'Festival Days') t.records = [];
     if (fdNoDate && t.name === 'Festival Days') t.fields = t.fields.filter(f => f.name !== 'Date');
+    // horizontal v0.1.3: ?fddt → Festival Days Date as a dateTime at 00:00 Israel (UTC string = the day before) — proves no off-by-one
+    if (QS.has('fddt') && t.name === 'Festival Days') {
+        t.fields = t.fields.map(f => (f.name === 'Date' ? {...f, type: 'dateTime'} : f));
+        for (const r of t.records as Array<{cells: {[k: string]: unknown}}>) {
+            const d = String(r.cells.Date ?? '');
+            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) r.cells.Date = new Date(Date.parse(d + 'T00:00:00Z') - (d < '2026-10-25' ? 3 : 2) * 3600e3).toISOString();
+        }
+    }
     if (outside && t.name === 'Slots_Events' && t.records.length && !t.records.some(r => r.id === 'recOutside')) {
         const src = t.records.find(r => r.cells.Start) ?? t.records[0];
         t.records.push({id: 'recOutside', cells: {...src.cells, Slot: 'מחוץ לטווח', Start: '2027-03-01T10:00:00.000Z', End: '2027-03-01T12:00:00.000Z'}});

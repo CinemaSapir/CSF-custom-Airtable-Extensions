@@ -21,7 +21,6 @@ import {
     passPicked,
     toggleIn,
     normalizeOff,
-    dayBar,
     dayOf,
     NO_DAY,
     emptyFilters,
@@ -46,7 +45,7 @@ import {
     type ResStep,
     type Seg,
 } from './logic/core';
-import {HW, LANE, LODGE_HEAD, LODGE_ROW, TEXT_MIN, barH, crowdedIn, dayPillU, hAxis, hLens, hLiveCounts, hRowStates, resizeLane, rowDropTarget, rowLayout, scrollLeftFor, slOf, stickyU, type HRow, type Measure} from './logic/hcore';
+import {HW, LANE, LODGE_HEAD, LODGE_ROW, TEXT_MIN, barH, crowdedIn, dayPillU, hAxis, hLens, hLiveCounts, hRowStates, resizeLane, rowDropTarget, rowLayout, scrollLeftFor, slOf, stickyU, type HRow, type Measure, hDayTitle} from './logic/hcore';
 import {OP_HE, hColCount, hColDims, hEffectiveCF, hNormalizeCF, hPassCol, hSetOp, hToggleVal, noVals, type HColFilters, type HOp} from './logic/hfilter';
 import {CSS} from './styles';
 import {HCSS} from './hstyles';
@@ -439,7 +438,6 @@ export function HTimeline(p: TimelineProps) {
     const counts = segs.length ? hLiveCounts(filtered, p.days, mAt(sl), mAt(sl + W)) : {};
     const day = p.days.length ? dayOf(p.days, centreT) : null;
     const fl = p.numbers.festLen;
-    const words = {prep: T.Heading_2, fest: T.Heading_3, wrap: T.Heading_4};
 
     // ------------------------------------------------ actions
     const reopen = (t: string) => {
@@ -712,11 +710,12 @@ export function HTimeline(p: TimelineProps) {
         if (s.kind === 'day') {
             const d = p.days[s.k] ?? NO_DAY;
             const ph = phase(d.n, fl);
-            const b = dayBar(d, fl, words);
+            const b = hDayTitle(d);
             under.push(
-                <div key={`d${si}`} className={`hds ${ph}`} data-k={s.k} style={{right: HW + s.y, width: s.h, background: phaseBg(ph)}} data-slot={s.k === k ? 'Heading_2–4 (מפריד יום)' : undefined}>
+                <div key={`d${si}`} className={`hds ${ph}`} data-k={s.k} style={{right: HW + s.y, width: s.h, background: phaseBg(ph)}} data-slot={s.k === k ? 'Festival Days · Name (מפריד יום) · Color_1–3 רקע' : undefined}>
                     <span className="hdst">
-                        {b.t} · <small>{b.s}</small>
+                        {b.t}
+                        {b.s ? <small> · {b.s}</small> : null}
                     </span>
                 </div>,
             );
@@ -733,19 +732,18 @@ export function HTimeline(p: TimelineProps) {
     segs.forEach((s, si) => {
         if (s.kind !== 'day') return;
         const d = p.days[s.k] ?? NO_DAY;
-        const ph = phase(d.n, fl);
-        const b = dayBar(d, fl, words);
-        // v0.1.2 #9: the SAME title as the vertical's day header (dayBar → «יום 2 · פסטיבל · …» / «הכנות · עוד 3 ימים» /
-        // «פירוק · יום 1» + weekday · date) — never cut to the phase word; it sticks to the visible right edge of its day
+        const b = hDayTitle(d);
+        // v0.1.3 #4: the Festival Days record name verbatim (hDayTitle; no phase words); sticks to the visible right edge of its day.
+        // v0.1.3 #3: neutral ink pill (no phase / accent colour)
         const nextDay = segs.slice(si + 1).find(x => x.kind === 'day');
         const u0 = s.y + s.h,
             u1 = nextDay ? nextDay.y : ax.width;
         if (u1 < vis0 || u0 > vis1) return;
-        const txt = `${b.t} · ${b.s}`;
+        const txt = b.s ? `${b.t} · ${b.s}` : b.t;
         const pu = dayPillU(u0, u1, sl, measure(txt, 10.5) + 16);
         if (pu !== null)
             rul.push(
-                <div key={`dp${si}`} className="hdp" data-k={s.k} data-title={b.t} style={{right: HW + pu, background: phaseBg(ph)}} title={txt} data-slot={s.k === k ? 'Heading_2–4 · Date_3 · Number_4 (כותרת יום — כמו באנכי)' : undefined}>
+                <div key={`dp${si}`} className="hdp" data-k={s.k} data-title={b.t} style={{right: HW + pu}} title={txt} data-slot={s.k === k ? 'Festival Days · Name לפי Date (כותרת יום = שם הרשומה)' : undefined}>
                     {txt}
                 </div>,
             );
@@ -1178,9 +1176,9 @@ export function HTimeline(p: TimelineProps) {
 
             {/* ---------------- day banner ---------------- */}
             <div className={`ban ${day ? phase(day.n, fl) : ''}`} style={day ? {background: phaseBg(phase(day.n, fl))} : undefined}>
-                <div className="ctr" data-slot="Heading_3 · Date_3 (מרכז · קרימזון)">
-                    <small>{day ? dayBar(day, fl, words).s : ''}</small>
-                    <span className="big">{day ? dayBar(day, fl, words).t : ''}</span>
+                <div className="ctr" data-slot="Festival Days · Name (כותרת היום · דיו) · שעון">
+                    <small>{day ? hDayTitle(day).s : ''}</small>
+                    <span className="big">{day ? hDayTitle(day).t : ''}</span>
                     <span className="clock num">
                         <bdi dir="ltr">{fmt(curMin)}</bdi>
                     </span>
@@ -1391,7 +1389,7 @@ export function HTimeline(p: TimelineProps) {
                                 </div>
                             );
                         })}
-                        {!openT.length ? <div className="dayempty">{day ? `${dayBar(day, fl, words).t} · ` : ''}אין פריטים ביום הזה · כל הטבלאות בשורת הסגורות</div> : null}
+                        {!openT.length ? <div className="dayempty">{day ? `${hDayTitle(day).t} · ` : ''}אין פריטים ביום הזה · כל הטבלאות בשורת הסגורות</div> : null}
                         {nowM !== null ? <div className="hnow" style={{right: HW + uOf(nowM) - 1}} /> : null}
                     </div>
                     {rowDrag && rowDrag.lineY !== null ? <div className="hdropline" style={{top: rowDrag.lineY + (vpRef.current?.scrollTop ?? 0), width: totalW}} /> : null}
@@ -1609,7 +1607,7 @@ export function HTimeline(p: TimelineProps) {
                     label={HE(pop.t)}
                     color={C(pop.t)}
                     kind={specOf(pop.t)?.time ?? 'date'}
-                    dayTitle={dayBar(dayOf(p.days, pop.s), fl, words)}
+                    dayTitle={hDayTitle(dayOf(p.days, pop.s))}
                     dateText={popDateText(pop)}
                     nameWritable={!!p.writer?.nameWritable(pop.t)}
                     slots={slotChoices(p.items, pop.s, pop.e)}

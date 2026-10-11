@@ -13,6 +13,7 @@ import type {Writer} from './EditUi';
 import {mapFields, type FieldLike} from './logic/edit';
 import {FILTER_SLOTS, buildDays, daysProblem, distinctVals, filterKind, israelParts, parseRes, pickRes, tzModeOf, type Day} from './logic/core';
 import {H_OPS, OP_FULL, OP_HE, defaultFilterFields, hPassCol, noVals, parseFilterCell, parseHOp, splitList, type HColFilter, type HColFilters, type HFilterLine, type HOp} from './logic/hfilter';
+import {fdDate} from './logic/hcore';
 import {names as namesOf, readItems, type RecView, type TableInput} from './logic/read';
 import {FESTIVAL_DAY_FIELDS, LOOKUP_TABLES, REMOVED_TABLES, TABLE_SPECS, type TableSpec} from './logic/tables';
 /** v0.2.11: Option_List_6 rows naming a removed table (Tasks, Petty Cash, …) are dropped silently — no notice, no ✗ */
@@ -310,8 +311,9 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
             const cache = new Map<string, Field | null>();
             for (const r of daysRec.records) {
                 const v = recView(daysRec.table, r, cache);
-                const ds = String(v.raw(FESTIVAL_DAY_FIELDS.date) ?? '').slice(0, 10);
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) continue;
+                // v0.1.3 #4: Israel calendar date (a dateTime Date field used to slice the UTC string → the day before)
+                const ds = fdDate(v.raw(FESTIVAL_DAY_FIELDS.date));
+                if (!ds) continue;
                 byId[r.id] = ds;
                 if (!names[ds]) names[ds] = v.name;
             }
@@ -319,6 +321,11 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
         return {names, dayDateById: byId};
     }, [daysRec]);
     const days: Day[] = useMemo(() => buildDays(first, last, day1, names), [first, last, day1, names]);
+    const dayNamed = useMemo(() => {
+        const n = days.filter(d => (names[d.date] || '').trim()).length;
+        const sm = days.find(d => (names[d.date] || '').trim());
+        return {named: n, total: days.length, sample: sm ? `${sm.date} → «${names[sm.date]}»` : ''};
+    }, [days, names]);
 
     const statusRows = cfg.options('Option_List_7');
     const lodge = {in: cfg.text('Table_Heading_2') || '15:00', out: cfg.text('Table_Heading_3') || '11:00'};
@@ -542,7 +549,7 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
             filterFields={filterFields}
             onHiddenCount={setHiddenN}
         />
-        <TimelineStatus st={st} loaded={tableData} items={res.items} tableFilters={tableFilters} filterSpecs={filterSpecs} colDefaults={colDefaults} hiddenN={hiddenN} />
+        <TimelineStatus st={st} loaded={tableData} items={res.items} dayNamed={dayNamed} tableFilters={tableFilters} filterSpecs={filterSpecs} colDefaults={colDefaults} hiddenN={hiddenN} />
         </>
     );
 }
@@ -558,6 +565,8 @@ function TimelineStatus(props: {
     colDefaults: HColFilters;
     /** v0.2.11: records the user hid with 👁 */
     hiddenN?: number;
+    /** v0.1.3: programme days that got their title from a Festival Days record (the rest show the plain date) */
+    dayNamed?: {named: number; total: number; sample: string};
     /** v0.2.13: shown regardless of the right-pane toggle (empty state / crash screen) */
     force?: boolean;
 }) {
@@ -592,7 +601,22 @@ function TimelineStatus(props: {
         }
     }
     for (const m of st.missingTables) sources.push({label: 'טבלה מ-Option_List_6', table: null, via: 'לא נמצאה ✗', ok: false, note: m});
-    sources.push({label: 'Festival Days (שמות ימים)', table: st.fdTable?.name ?? null, via: st.fdTable ? 'Source_Table_3 / לפי שם' : 'לא נמצאה', ok: true, note: st.fdTable ? null : 'רשות — שמות ימים כלליים'});
+    sources.push({label: 'Festival Days (שמות ימים)', table: st.fdTable?.name ?? null, via: st.fdTable ? 'Source_Table_3 / לפי שם' : 'לא נמצאה ✗', ok: !!st.fdTable, note: st.fdTable ? null : 'כותרות הימים = התאריך בלבד — הפעילו את טבלת Festival Days לאלמנט'});
+    // v0.1.3 #4: day titles = Festival Days record name (primary field) matched by its Date field (Israel date)
+    if (st.fdTable) {
+        const fds = st.fdTable.fields;
+        const dateF = findLoose(fds, FESTIVAL_DAY_FIELDS.date);
+        let prim: Field | null = null;
+        try {
+            prim = st.fdTable.primaryField;
+        } catch {
+            prim = null;
+        }
+        const nameOn = !!prim && fds.some(f => f.id === prim?.id);
+        const dn = props.dayNamed;
+        sources.push({label: 'Festival Days · Date (התאמה לתאריך)', table: st.fdTable.name, field: dateF?.name ?? 'Date', via: dateF ? 'לפי שם' : 'לא נמצא ✗', ok: !!dateF, note: dateF ? (dn ? `${dn.named} / ${dn.total} ימים קיבלו שם רשומה` : null) : 'השדה מוסתר מהאלמנט או חסר — כותרות הימים = התאריך בלבד'});
+        sources.push({label: 'Festival Days · שם (כותרת היום)', table: st.fdTable.name, field: prim?.name ?? 'Name', via: nameOn ? 'שדה ראשי' : 'לא נמצא ✗', ok: nameOn, note: nameOn ? (dn?.sample ? `דוגמה: ${dn.sample}` : null) : 'השדה הראשי מוסתר מהאלמנט — כותרות הימים = התאריך בלבד'});
+    }
     // v0.1.2: one line per configured filter field (resolved ✓ / not found = missing or hidden from the element ✗)
     const filters: StatusFilter[] = [];
     for (const [t, list] of Object.entries(props.filterSpecs ?? {})) {

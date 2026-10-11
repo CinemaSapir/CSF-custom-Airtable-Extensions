@@ -50,3 +50,16 @@ the vertical's history is in tools/VERTICAL-RELEASE-NOTES.md. `tools/port.py <re
     (source, op, values, matched/total) and flags a field that is missing or hidden from the element (✗).
 Tests: 138 unit (tests/v012.test.ts new), cdp-h010 47/47, cdp-h012 14/14 (before = v0.1.1 worktree: 10 failing as expected).
 Evidence: evidence/v012/before-*.png / after-*.png, evidence/config-map-h012.png.
+
+## v0.1.3 — the owner 2026-10-11 06:57 (feedback on v0.1.2)
+1. Window cards stay 28px high, but the name is back to 12.5px (v0.1.1 size): wraps to 2 lines, clamped with «…», never shrinks.
+2. Cross-section title «חתך רוחב» + its switch wear the cross-section colour (redDark1 = band label / lens edge).
+3. Day titles in calm ink: the banner title is grayDark1 (the clock keeps the accent); ruler day pills are ink on white.
+4. Day titles = the Festival Days record names, verbatim. Root cause: the shared core `dayBar` (also used by the vertical) built
+   the title from the day NUMBER relative to Date_3 («הכנות · עוד 3 ימים», «הכנות · ערב הפסטיבל», «יום 2 · פסטיבל», «פירוק · יום 1»)
+   and only kept the text after « · » of the record name. Now `hDayTitle` (logic/hcore.ts) shows the record's primary field as-is,
+   matched by its Date field as an Israel calendar date (`fdDate`: a dateTime Date used to be sliced as UTC → the day before for
+   00:00–02:59 Israel). No record / Date or Name hidden → the plain date («שבת 31.10.26»), and «מצב חיבור» shows
+   Festival Days · Date / · שם with ✓ or ✗ + «N / M ימים קיבלו שם רשומה» + a sample. Heading_2–4 (phase words) are no longer shown.
+Tests: 144 unit (tests/v013.test.ts: DEMO Festival Days 26 records → titles == names), cdp-h013 11/11 (v0.1.2: 9 fail),
+cdp-h012 0 failing, cdp-h010 47/47. Evidence: evidence/v013/{before,after}-*.png, evidence/config-map-h013.png.

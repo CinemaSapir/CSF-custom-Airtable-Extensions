@@ -40,7 +40,7 @@ try {
     await sleep(300);
     const g1 = await b.js(`({st:document.querySelector('.wg').scrollTop,sl:document.querySelector('.hvp').scrollLeft})`);
     check('1: wheel over the window scrolls its cards, the timeline does not move', g1.sl === g0.sl && g0.sh > g0.ch && g1.st > g0.st, {g0, g1});
-    check('4: cards ≥30% smaller (height ≤ 28px, name ≤ 9px)', g0.h <= 28.5 && parseFloat(g0.fs) <= 9, g0);
+    check('4: cards ≥30% smaller (height ≤ 28px; v0.1.3: name back to 12.5px)', g0.h <= 28.5, g0);
     await shot('1-window-scrolled.png', {x: 0, y: wb.y, width: 1440, height: wb.h});
     // ---- 2: ✕ on a window table pill + 👁 on a card → tabs at the window's left; click restores
     const pill = await b.js(`document.querySelector('.wh .wp1.on')?.dataset.t`);
@@ -76,7 +76,7 @@ try {
     await go('?now=2026-10-31T19:30:00Z');
     const p9 = await b.js(`[...document.querySelectorAll('.hdp')].map(x=>x.textContent)`);
     const ban = await b.js(`document.querySelector('.ban .ctr .big').textContent`);
-    check('9: ruler day titles = the vertical text (count of days / «ערב הפסטיבל» / «יום 1 · פסטיבל»), never the bare phase word', p9.length > 0 && p9.every(t => !/^(הכנות|פירוק|פסטיבל) · /.test(t) || / · (עוד|ערב|יום)/.test(t)) && p9.some(t => t.startsWith(ban)), {p9, ban});
+    check('9: ruler day titles never the bare phase word (v0.1.3: = Festival Days record names, see cdp-h013)', p9.length > 0 && p9.some(t => t.startsWith(ban)), {p9, ban});
     await shot('9-day-titles.png', {x: 0, y: 0, width: 1440, height: 330});
     // ---- 10: per-table filters from Extension_Config Filter_1 (Table.Field lines) + funnel ops + status panel
     const f1 = encodeURIComponent('Slots_Events.Status הוא משובץ\nStaffing.Status לא ריק\nSlots_Events.Location\nLodging.Room Type אינו זוגי');

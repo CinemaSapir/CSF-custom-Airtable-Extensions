@@ -4,7 +4,7 @@
  * a Seg's `y`/`h` are the distance from the right edge of the time area (`u`) and the width, so yOf / mOf /
  * xsPlan / axisTicks from core.ts work unchanged on the horizontal axis.
  */
-import {DAY_MIN, NO_DAY, allDayOn, assignLanes, busyHours, compressedHeight, mergeLodging, type Day, type Item, type LodgeCluster, type Seg} from './core';
+import {DAY_MIN, NO_DAY, allDayOn, defaultDayName, israelParts, assignLanes, busyHours, compressedHeight, mergeLodging, type Day, type Item, type LodgeCluster, type Seg} from './core';
 
 /** sizes (px) — row header width, lane pitch, bar height, day separator width */
 export const HW = 200;
@@ -217,4 +217,31 @@ export const barH = (laneH: number) => (laneH >= 12 ? laneH - 4 : Math.max(2, la
 export function dayPillU(dayU0: number, dayU1: number, viewU: number, pillW: number): number | null {
     if (dayU1 - dayU0 < pillW + 8) return dayU1 - dayU0 >= 30 ? dayU0 + 4 : null;
     return Math.max(dayU0 + 4, Math.min(viewU + 6, dayU1 - pillW - 4));
+}
+
+// ---------------------------------------------------------------- v0.1.3 day titles = the Festival Days record names
+/**
+ * the owner 06:57 #4: a day's title is its Festival Days record name, VERBATIM (the core dayBar built «הכנות · עוד 3 ימים» /
+ * «יום 2 · פסטיבל» from the day number and only kept the part after « · » of the name). No record for a date → the plain date.
+ * Subtitle = the date only when the name does not already carry it (no invented phase words).
+ */
+export function hDayTitle(d: Day | null | undefined): {t: string; s: string} {
+    if (!d || !d.date) return {t: '', s: ''};
+    const plain = defaultDayName(d.date);
+    const t = (d.name || '').trim() || plain;
+    const [, m, dd] = d.date.split('-').map(Number);
+    const has = new RegExp(`(^|[^0-9])${dd}\\.${m}(\\.|$|[^0-9])`).test(t) || t.includes(d.date);
+    return {t, s: has ? '' : plain};
+}
+/** a Festival Days Date cell → Israel calendar date: «2026-10-31» as-is; a dateTime (ISO with a time) → its Israel local date
+ *  (slicing the UTC string gave the day BEFORE for any time from 00:00 to 02:59/03:00 Israel) */
+export function fdDate(v: unknown): string | null {
+    const raw = Array.isArray(v) ? v[0] : v;
+    const str = String(raw ?? '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(str)) {
+        const ms = Date.parse(str);
+        return Number.isFinite(ms) ? israelParts(ms).date : null;
+    }
+    return null;
 }

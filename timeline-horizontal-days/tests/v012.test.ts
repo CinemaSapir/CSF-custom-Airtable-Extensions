@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {LANE, LANE_MIN, ROW_MIN, TEXT_MIN, barH, dayPillU, resizeLane, rowLayout} from '../frontend/logic/hcore';
-import {buildDays, dayBar, type Item} from '../frontend/logic/core';
+import {buildDays, type Item} from '../frontend/logic/core';
 import {defaultFilterFields, hColCount, hColDims, hEffectiveCF, hPassCol, hSetOp, hToggleVal, parseFilterCell, parseFilterLine, parseHOp, passH} from '../frontend/logic/hfilter';
 import {TIMELINE_DEFAULTS} from '../frontend/config';
 import {HCSS} from '../frontend/hstyles';
@@ -42,11 +42,10 @@ test('#3/#5/#6 defaults: 12 h, all tables ON, collapse empty tables + hours; old
     const cur = {v: PERSIST_V, res: 180};
     assert.equal(persistUpgrade(cur), cur);
 });
-test('#4 cards ≥30% smaller (height 40→28, name 12.5→9px), 8 per row', () => {
+test('#4 cards ≥30% smaller (height 40→28), 8 per row (v0.1.3: the name font is back to 12.5px — see v013)', () => {
     assert.equal(WIN_COLS, 8);
     assert.match(HCSS, /\.htl\{--wcH:28px\}/);
-    assert.match(HCSS, /\.htl \.wc \.nm\{font-size:9px/);
-    assert.ok(28 / 40 <= 0.7 && 9 / 12.5 <= 0.72);
+    assert.ok(28 / 40 <= 0.7);
 });
 test('#7 vertical tokens: 4px start border + 1px hairline, hatch 4/8, lodging 14.9% + 2px, lens tint + redLight1', () => {
     assert.match(HCSS, /\.htl \.hb\{border:1px solid rgba\(0,0,0,\.06\);border-right:4px solid/);
@@ -71,12 +70,9 @@ test('#8 rows shrink to a few px; text never scales — hidden below one line', 
     assert.match(src, /if \(noText\) continue;/);
     assert.doesNotMatch(HCSS, /transform:[^;}]*scale\(/);
 });
-test('#9 day titles = the vertical\'s dayBar text, uncut; pill sticks inside its day', () => {
+test('#9 ruler day pill: full title, never cut; sticks inside its day (v0.1.3: title = record name — see v013)', () => {
     assert.doesNotMatch(src, /b\.t\.replace\(/);
-    assert.match(src, /const txt = `\$\{b\.t\} · \$\{b\.s\}`;/);
-    assert.equal(dayBar(days[0], 7).t, 'הכנות · עוד 2 ימים');
-    assert.equal(dayBar(days[1], 7).t, 'הכנות · ערב הפסטיבל');
-    assert.match(dayBar(days[2], 7).t, /^יום 1 · פסטיבל/);
+    assert.match(src, /const txt = b\.s \? `\$\{b\.t\} · \$\{b\.s\}` : b\.t;/);
     assert.equal(dayPillU(100, 1000, 0, 80), 104);
     assert.equal(dayPillU(100, 1000, 500, 80), 506);
     assert.equal(dayPillU(100, 1000, 990, 80), 916);

@@ -132,9 +132,9 @@ export const TIMELINE_DEFAULTS: ConfigDefaults = {
 
 export const TIMELINE_DOCS: SlotDocs = {
     Title: 'כותרת בשורה העליונה',
-    Heading_2: 'שם שלב: הכנות (ימים ≤ 0)',
-    Heading_3: 'שם שלב: פסטיבל (ימים 1…Number_4)',
-    Heading_4: 'שם שלב: פירוק',
+    Heading_2: 'שם שלב: הכנות (ימים ≤ 0) — לא מוצג מ-v0.1.3 (כותרת יום = שם רשומת Festival Days לפי Date)',
+    Heading_3: 'שם שלב: פסטיבל (ימים 1…Number_4) — לא מוצג מ-v0.1.3 (כותרת יום = שם רשומת Festival Days לפי Date)',
+    Heading_4: 'שם שלב: פירוק — לא מוצג מ-v0.1.3 (כותרת יום = שם רשומת Festival Days לפי Date)',
     Table_Heading_1: 'כותרת עמודת שמות השורות (מעל הטבלאות)',
     Table_Heading_2: 'שעת צ׳ק-אין ברירת מחדל ללינה (השדה בתאריך בלבד), HH:MM',
     Table_Heading_3: 'שעת צ׳ק-אאוט ברירת מחדל ללינה, HH:MM',
