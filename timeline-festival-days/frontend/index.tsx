@@ -1,4 +1,4 @@
-import {createContext, useContext, useMemo, useState} from 'react';
+import {Component, createContext, useContext, useMemo, useState, type ErrorInfo, type ReactNode} from 'react';
 import {colorUtils, expandRecord, initializeBlock, useBase, useCustomProperties, useGlobalConfig, useRecords, useSession} from '@airtable/blocks/interface/ui';
 import type {Base, Field, Record as AirtableRecord, Table} from '@airtable/blocks/interface/models';
 import pkg from '../package.json';
@@ -11,7 +11,7 @@ import {ConfigEditor} from './ConfigEdit';
 import {EDIT_TOGGLE_KEY, MAPPING_TOGGLE_KEY, looseField, STATUS_TOGGLE_KEY, editToggleProperty, isEditOn, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
 import type {Writer} from './EditUi';
 import {mapFields, type FieldLike} from './logic/edit';
-import {FILTER_SLOTS, buildDays, passCol, distinctVals, filterKind, israelParts, parseOp, parseRef, parseRes, pickRes, splitVals, tzModeOf, type Day, type FilterOp, type ColFilters} from './logic/core';
+import {FILTER_SLOTS, buildDays, daysProblem, passCol, distinctVals, filterKind, israelParts, parseOp, parseRef, parseRes, pickRes, splitVals, tzModeOf, type Day, type FilterOp, type ColFilters} from './logic/core';
 import {names as namesOf, readItems, type RecView, type TableInput} from './logic/read';
 import {FESTIVAL_DAY_FIELDS, LOOKUP_TABLES, REMOVED_TABLES, TABLE_SPECS, type TableSpec} from './logic/tables';
 /** v0.2.11: Option_List_6 rows naming a removed table (Tasks, Petty Cash, …) are dropped silently — no notice, no ✗ */
@@ -70,7 +70,69 @@ function getCustomProperties(base: Base) {
 const KeyCtx = createContext<ConfigKey>({slug: CONFIG_SLUG, variant: CONFIG_VARIANT, legacy: false});
 export const useConfigKey = () => useContext(KeyCtx);
 
+// ---------------------------------------------------------------- v0.2.13: crash safety
+/** error boundary: a render error shows a Hebrew message (+ details, retry) instead of a blank element */
+export class CrashBoundary extends Component<{children: ReactNode; fallback: (err: Error, reset: () => void) => ReactNode}, {err: Error | null}> {
+    override state: {err: Error | null} = {err: null};
+    static getDerivedStateFromError(err: unknown) {
+        return {err: err instanceof Error ? err : new Error(String(err))};
+    }
+    override componentDidCatch(err: unknown, info: ErrorInfo) {
+        console.error('[טיימליין] שגיאה', err, info?.componentStack);
+    }
+    override render() {
+        return this.state.err ? this.props.fallback(this.state.err, () => this.setState({err: null})) : this.props.children;
+    }
+}
+/** the status panel inside its own boundary: if it fails too, it simply disappears */
+function StatusSafe({children}: {children: ReactNode}) {
+    return <CrashBoundary fallback={() => null}>{children}</CrashBoundary>;
+}
+const BOX: React.CSSProperties = {direction: 'rtl', textAlign: 'right', maxWidth: 760, margin: '24px auto', padding: '18px 22px', border: '1px solid #e3ddd2', borderRadius: 10, background: '#fff', color: '#333', font: '14px/1.6 "Segoe UI", Heebo, Rubik, Arial, sans-serif'};
+export const NO_DAYS_TEXT = 'לא נמצאו ימי פסטיבל — בדקו שטבלת Festival Days ושדה Date מופעלים באלמנט';
+function NoDays(p: {reason: string; first: string; last: string; source: string; notices: string[]}) {
+    return (
+        <div style={BOX} data-nodays="1" role="status">
+            <div style={{fontSize: 18, fontWeight: 700, marginBottom: 6}}>📅 {NO_DAYS_TEXT}</div>
+            <div>
+                הטווח שהתקבל: <bdi dir="ltr">{p.first || '—'}</bdi> → <bdi dir="ltr">{p.last || '—'}</bdi> ({p.source})
+            </div>
+            <div style={{color: '#a33', marginTop: 4}} data-reason="1">
+                {p.reason}
+            </div>
+            <div style={{color: '#666', marginTop: 8, fontSize: 13}}>תקנו את Date_1 (יום ראשון בציר) ו-Date_2 (יום אחרון) בשורת Extension_Config, או רוקנו אותם לברירת המחדל 16.10–10.11. פרטים בפאנל «מצב חיבור» למטה.</div>
+            {p.notices.length ? <div style={{color: '#666', marginTop: 6, fontSize: 12.5}}>⚠ {p.notices.join(' · ')}</div> : null}
+            <div style={{color: '#999', marginTop: 8, fontSize: 11.5}}>טיימליין ימים v{VERSION}</div>
+        </div>
+    );
+}
+function CrashView({error, onRetry}: {error: Error; onRetry?: () => void}) {
+    const [open, setOpen] = useState(false);
+    return (
+        <div style={BOX} data-crash="1" role="alert">
+            <div style={{fontSize: 18, fontWeight: 700, marginBottom: 6}}>⚠ הטיימליין נתקל בשגיאה ולא הוצג</div>
+            <div>אפשר לנסות שוב; אם זה חוזר, שלחו צילום של המסך הזה (עם הפרטים) והפאנל «מצב חיבור» למטה.</div>
+            <div style={{display: 'flex', gap: 8, marginTop: 10}}>
+                <button type="button" data-details="1" onClick={() => setOpen(o => !o)} style={{font: 'inherit', padding: '3px 12px', borderRadius: 6, border: '1px solid #d8c28f', background: '#fffaf0', cursor: 'pointer'}}>
+                    {open ? 'הסתר פרטים' : 'הצג פרטים'}
+                </button>
+                {onRetry ? (
+                    <button type="button" onClick={onRetry} style={{font: 'inherit', padding: '3px 12px', borderRadius: 6, border: '1px solid #ccc', background: '#fff', cursor: 'pointer'}}>
+                        נסו שוב
+                    </button>
+                ) : null}
+            </div>
+            {open ? (
+                <pre dir="ltr" data-stack="1" style={{textAlign: 'left', whiteSpace: 'pre-wrap', fontSize: 11.5, background: '#f7f5f0', padding: 8, borderRadius: 6, marginTop: 8, maxHeight: 260, overflow: 'auto'}}>
+                    {`${error.name}: ${error.message}\n${(error.stack || '').split('\n').filter((l, i) => !(i === 0 && l.includes(error.message))).slice(0, 12).join('\n')}\nטיימליין ימים v${VERSION}`}
+                </pre>
+            ) : null}
+        </div>
+    );
+}
+
 function Root() {
+    if ((globalThis as {__TL_HARNESS_THROW?: string}).__TL_HARNESS_THROW === 'root') throw new Error('harness: forced crash at the root');
     const base = useBase();
     const {customPropertyValueByKey: cp} = useCustomProperties(getCustomProperties);
     const configTable = (cp.configTable as Table | undefined) ?? null;
@@ -110,7 +172,18 @@ function Configured({k, cp, configTable}: {k: ConfigKey; cp: {[k: string]: unkno
             docs={TIMELINE_DOCS}
             door2={false}
         >
-            <Loader variant={variant} paneConfigTable={configTable} />
+            <CrashBoundary
+                fallback={(err, reset) => (
+                    <>
+                        <CrashView error={err} onRetry={reset} />
+                        <StatusSafe>
+                            <TimelineStatus force st={{variant, paneConfigTable: configTable, missingTables: [], fdTable: null, wanted: []}} loaded={[]} items={[]} tableFilters={{}} colDefaults={{}} />
+                        </StatusSafe>
+                    </>
+                )}
+            >
+                <Loader variant={variant} paneConfigTable={configTable} />
+            </CrashBoundary>
         </ExtensionConfigProvider>
         </CpCtx.Provider>
         </KeyCtx.Provider>
@@ -206,6 +279,8 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
     const ckey = useConfigKey();
     const cfg = useExtensionConfig();
     const session = useSession();
+    const cp = useContext(CpCtx);
+    if ((globalThis as {__TL_HARNESS_THROW?: string}).__TL_HARNESS_THROW === 'screen') throw new Error('harness: forced crash inside the timeline');
     const notices = [...n0];
     if (!hasDays) notices.push('טבלת Festival Days לא מופעלת · שמות ימים כלליים');
 
@@ -262,8 +337,17 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
         excludeTypes,
     });
 
+    // v0.2.13: no days (Date_1 → Date_2 empty / reversed / > 400 days) → a friendly empty state + the status panel, never a crash
+    if (!days.length)
+        return (
+            <>
+                <NoDays reason={daysProblem(first, last) ?? 'אין ימים בטווח'} first={first} last={last} source={cfg.status === 'ok' ? `Extension_Config · ${ckey.slug}${ckey.variant ? ` [${ckey.variant}]` : ''}` : 'ברירות מחדל בקוד'} notices={notices} />
+                <StatusSafe>
+                    <TimelineStatus force st={st} loaded={tableData} items={[]} tableFilters={{}} colDefaults={{}} />
+                </StatusSafe>
+            </>
+        );
     // ---- v0.2.4 per-table filters: right pane first, else Extension_Config Filter_N ('Table.Field' + Filter_Operator_N + Filter_Value_N)
-    const cp = useContext(CpCtx);
     const tableFilters: {[t: string]: {field: string; kind: 'select' | 'link' | 'text'; op: FilterOp; values: string[]; source: string; options: string[]}} = {};
     for (const l of tableData) {
         let f: Field | null = null,
@@ -449,6 +533,8 @@ function TimelineStatus(props: {
     colDefaults: ColFilters;
     /** v0.2.11: records the user hid with 👁 */
     hiddenN?: number;
+    /** v0.2.13: shown regardless of the right-pane toggle (empty state / crash screen) */
+    force?: boolean;
 }) {
     const ckey = useConfigKey();
     const {st, loaded, items, tableFilters, colDefaults} = props;
@@ -456,7 +542,7 @@ function TimelineStatus(props: {
     const cfg = useExtensionConfig();
     const cp = useContext(CpCtx);
     const globalConfig = useGlobalConfig();
-    const statusOn = isStatusOn(cp[STATUS_TOGGLE_KEY]);
+    const statusOn = !!props.force || isStatusOn(cp[STATUS_TOGGLE_KEY]);
     const mappingOn = isMappingOn(cp[MAPPING_TOGGLE_KEY]);
     const editOn = isEditOn(cp[EDIT_TOGGLE_KEY]);
     if (!statusOn && !mappingOn && !editOn) return null;
@@ -538,4 +624,10 @@ function TimelineStatus(props: {
 
 const EDIT_SLOTS: readonly string[] = Object.keys(TIMELINE_DEFAULTS);
 
-initializeBlock({interface: () => <Root />});
+initializeBlock({
+    interface: () => (
+        <CrashBoundary fallback={(err, reset) => <CrashView error={err} onRetry={reset} />}>
+            <Root />
+        </CrashBoundary>
+    ),
+});

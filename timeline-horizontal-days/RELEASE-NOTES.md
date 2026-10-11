@@ -17,3 +17,11 @@ the vertical's history is in tools/VERTICAL-RELEASE-NOTES.md. `tools/port.py <re
   byte-identical to /workspace/csf-extension-config/status-panel and the vertical v0.2.12 hook.
 - Extension_Config: DEMO row recShA2y5Hpy7Djn9 (71 cells from the code defaults), CSV line in config/ and in the shared DEMO CSV.
 - Tests: 121 unit + 47 headless-Chrome e2e (harness/cdp-h010.mjs). Evidence: evidence/h-*.png, config-map-h010.png.
+
+## v0.1.1 — port of vertical v0.2.13 (the owner 04:54 URGENT crash fix)
+- Same root cause as the vertical v0.2.12 PROD crash: JumpControl read `dayOf(days, cur).date` with days = [] — buildDays gives no days
+  when Date_1 → Date_2 is reversed or longer than 400 days (Festival Days only names days; a slot outside the range is clamped).
+- No days → «לא נמצאו ימי פסטיבל — בדקו שטבלת Festival Days ושדה Date מופעלים באלמנט» + reason + «מצב חיבור» forced open.
+- dayOf → NO_DAY instead of undefined; hRowStates / day separators / partsOf / planFields guarded.
+- Error boundaries (top level + around the Loader) → «הטיימליין נתקל בשגיאה ולא הוצג», «הצג פרטים», «נסו שוב», status panel.
+- Tests: tests/v0213.test.ts (ported) + harness/cdp-h011.mjs (11 real-browser checks). tools/port.py keeps the horizontal version and lock name.

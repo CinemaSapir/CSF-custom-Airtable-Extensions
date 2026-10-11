@@ -31,8 +31,21 @@ const bump = () => {
 export const writeLog: unknown[] = [];
 (globalThis as {__writes?: unknown[]}).__writes = writeLog;
 
+// v0.2.13 crash repro: ?fdempty=1 (Festival Days without records), ?fdnodate=1 (its Date field hidden on the element),
+// ?outside=1 (a slot far outside Date_1…Date_2), ?d1= / ?d2= (Date_1 / Date_2 cells on the config row; needs ?cfgmap=1)
+// ?crash=screen|root → throw inside the timeline / at the root (error-boundary tests)
+if (QS.get('crash')) (globalThis as {__TL_HARNESS_THROW?: string}).__TL_HARNESS_THROW = QS.get('crash') as string;
+const fdEmpty = QS.has('fdempty');
+const fdNoDate = QS.has('fdnodate');
+const outside = QS.has('outside');
 function makeTable(t: TableJ) {
     if (dropFd && t.name === 'Festival Days') t.records = t.records.filter(r => r.cells.Date !== dropFd);
+    if (fdEmpty && t.name === 'Festival Days') t.records = [];
+    if (fdNoDate && t.name === 'Festival Days') t.fields = t.fields.filter(f => f.name !== 'Date');
+    if (outside && t.name === 'Slots_Events' && t.records.length && !t.records.some(r => r.id === 'recOutside')) {
+        const src = t.records.find(r => r.cells.Start) ?? t.records[0];
+        t.records.push({id: 'recOutside', cells: {...src.cells, Slot: 'מחוץ לטווח', Start: '2027-03-01T10:00:00.000Z', End: '2027-03-01T12:00:00.000Z'}});
+    }
     const fields = t.fields.map(f => {
         const options = f.type === 'dateTime' && tzUtc ? {timeZone: 'utc'} : f.type === 'dateTime' ? {timeZone: 'client'} : {};
         return {...f, isComputed: COMPUTED.has(f.type), options, config: {type: f.type, options}};
@@ -128,6 +141,7 @@ const cfgJ: TableJ[] = QS.get('cfgmap')
                   {id: 'fldCfgVar', name: 'Variant', type: 'singleLineText'},
                   {id: 'fldCfgTitle', name: 'Title', type: 'singleLineText'},
                   {id: 'fldCfgOL6', name: 'Option_List_6', type: 'multilineText'},
+                  ...(QS.get('d1') || QS.get('d2') ? [{id: 'fldCfgD1', name: 'Date_1', type: 'dateTime'}, {id: 'fldCfgD2', name: 'Date_2', type: 'dateTime'}] : []),
                   ...(QS.get('mf') === '0'
                       ? []
                       : [
@@ -142,6 +156,8 @@ const cfgJ: TableJ[] = QS.get('cfgmap')
                           Extension: EXT,
                           Variant: CK === 'varonly' ? 'timeline' : '',
                           Display_Name: 'טיימליין ימים',
+                          ...(QS.get('d1') ? {Date_1: QS.get('d1')} : {}),
+                          ...(QS.get('d2') ? {Date_2: QS.get('d2')} : {}),
                           Attachment_Mapping_Image: [{id: 'attTL1', url: 'http://127.0.0.1:8765/timeline-map.png', filename: 'timeline-v0.2.7-config-map.png', type: 'image/png', thumbnails: {large: {url: 'http://127.0.0.1:8765/timeline-map-large.png'}}}],
                           GitHub_URL: 'https://github.com/csf-demo/CSF-custom-Airtable-Extensions/tree/main/timeline-festival-days',
                       },

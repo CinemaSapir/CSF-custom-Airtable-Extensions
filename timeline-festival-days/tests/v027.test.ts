@@ -19,7 +19,7 @@ test('toggle: exact label, boolean, default OFF', () => {
 test('index: toggle in the right pane, panel only when ON, not tied to edit mode', () => {
     assert.match(src, /statusToggleProperty\(\)/);
     // v0.2.9: the dock also hosts the mapping panel → null only when BOTH toggles are OFF
-    assert.match(src, /const statusOn = isStatusOn\(cp\[STATUS_TOGGLE_KEY\]\);/);
+    assert.match(src, /const statusOn = (!!props\.force \|\| )?isStatusOn\(cp\[STATUS_TOGGLE_KEY\]\);/); // v0.2.13: force = empty state / crash screen
     // v0.2.10: + the «עריכה ישירה» editor in the same dock → null only when ALL three toggles are OFF
     assert.match(src, /if \(!statusOn && !mappingOn && !editOn\) return null;/);
     assert.doesNotMatch(src.slice(src.indexOf('function TimelineStatus')), /isEditMode|editMode/);

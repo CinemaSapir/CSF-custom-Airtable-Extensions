@@ -5,6 +5,8 @@
  */
 
 export type Day = {date: string; name: string; n: number};
+/** v0.2.13: stand-in returned instead of undefined when there are no days (PROD crash «reading 'date'» in JumpControl) */
+export const NO_DAY: Day = Object.freeze({date: '', name: '', n: 0}) as Day;
 export type Item = {
     table: string;
     id: string;
@@ -102,6 +104,14 @@ export function buildDays(first: string, last: string, day1: string, names: {[da
     }
     return out;
 }
+/** v0.2.13: why buildDays gave no days (Date_1 → Date_2 range from the matched Extension_Config row / pane / code), or null */
+export function daysProblem(first: string, last: string): string | null {
+    const len = daysBetween(first, last);
+    if (!Number.isFinite(len)) return `Date_1 / Date_2 לא תקינים (${first || 'ריק'} → ${last || 'ריק'})`;
+    if (len < 0) return `Date_1 (${first}) מאוחר מ-Date_2 (${last}) — הטווח הפוך`;
+    if (len > 400) return `הטווח Date_1 (${first}) → Date_2 (${last}) ארוך מ-400 ימים`;
+    return null;
+}
 
 export type Phase = 'prep' | 'fest' | 'wrap';
 export function phase(n: number, festLen = 7): Phase {
@@ -146,7 +156,7 @@ export function fmt(m: number): string {
     return `${pad2(Math.floor(x / 60))}:${pad2(x % 60)}`;
 }
 export function dayOf(days: Day[], m: number): Day {
-    return days[Math.max(0, Math.min(days.length - 1, Math.floor(m / DAY_MIN)))];
+    return days[Math.max(0, Math.min(days.length - 1, Math.floor(m / DAY_MIN)))] ?? NO_DAY;
 }
 export function parseHHMM(s: string): number | null {
     const mm = /^\s*(\d{1,2})[:.]?(\d{2})?\s*$/.exec(s || '');
@@ -442,7 +452,7 @@ export function columnStates(
 ): {[t: string]: ColState} {
     const a = k * DAY_MIN,
         b = a + DAY_MIN,
-        d = days[k];
+        d = days[k] ?? NO_DAY;
     const vis: {[t: string]: boolean} = {},
         tv: {[t: string]: boolean} = {},
         n: {[t: string]: number} = {},

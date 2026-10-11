@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Port the vertical timeline (a commit of /workspace/csf-timeline) into the horizontal repo, keeping the horizontal-only files.
 usage: tools/port.py <commit>   (run from /workspace/csf-timeline-horizontal)"""
-import subprocess, sys, os, re
+import subprocess, sys, os, re, json
 V = '/workspace/csf-timeline'
 C = sys.argv[1]
+H_VERSION = json.load(open('package.json'))['version']  # the horizontal keeps its own version
 H = os.getcwd()
 OWN = {'frontend/HTimeline.tsx', 'frontend/hstyles.ts', 'frontend/logic/hcore.ts'}
 SKIP_PREFIX = ('evidence/', 'release/')
@@ -15,6 +16,7 @@ REMOVED_TESTS = ['2/3: pills = table tag + title only', 'band: lens markup has t
     'fallback 1: a row Extension «timeline»', 'fallback 2 (PROD today)', '17:01 #1: header ✕ shrinks', '17:01 #4/#5: window funnel',
     'header: identical controls in one order on every table']
 def tests_tx(s):
+    s = s.replace("idx.indexOf('<Timeline\\n')", "idx.indexOf('<HTimeline\\n')").replace("טיימליין ימים v", "טיימליין אופקי v")
     s = s.replace('frontend/Timeline.tsx', 'frontend/HTimeline.tsx').replace("'Timeline.tsx'", "'HTimeline.tsx'").replace("from '../frontend/Timeline'", "from '../frontend/HTimeline'")
     for n in REMOVED_TESTS:
         i = s.find("test('" + n)
@@ -52,6 +54,8 @@ IDX_REP = [("import {Timeline, type ColumnDef} from './Timeline';", "import {HTi
  ("        <Timeline\n", "        <HTimeline\n"),
  ('displayName="טיימליין ימים"', 'displayName="טיימליין אופקי"'),
  ("(שורה ישנה — לשנות ל-Extension = timeline-festival-days)", "(כינוי — מומלץ לשנות ל-Extension = timeline-horizontal-days)"),
+ ("טיימליין ימים v{VERSION}", "טיימליין אופקי v{VERSION}"),
+ ("\\nטיימליין ימים v${VERSION}`}", "\\nטיימליין אופקי v${VERSION}`}"),
 ]
 def index_tx(s):
     for a, b in IDX_REP:
@@ -99,8 +103,10 @@ for f in files:
     elif f == 'frontend/config.ts': data = config_tx(data.decode()).encode()
     elif f == 'frontend/index.tsx': data = index_tx(data.decode()).encode()
     elif f == 'harness/sdk-mock.tsx': data = mock_tx(data.decode()).encode()
+    elif f == 'package-lock.json':
+        t = data.decode(); t = t.replace('"name": "csf-timeline",', '"name": "csf-timeline-horizontal",'); t = re.sub(r'("name": "csf-timeline-horizontal",\s*"version": )"[^"]+"', lambda m: m.group(1) + '"' + H_VERSION + '"', t); data = t.encode()
     elif f == 'package.json':
-        t = data.decode(); t = re.sub(r'"name": "csf-timeline"', '"name": "csf-timeline-horizontal"', t); t = re.sub(r'"version": "[^"]+"', '"version": "0.1.0"', t, count=1); data = t.encode()
+        t = data.decode(); t = re.sub(r'"name": "csf-timeline"', '"name": "csf-timeline-horizontal"', t); t = re.sub(r'"version": "[^"]+"', '"version": "' + H_VERSION + '"', t, count=1); data = t.encode()
     p = os.path.join(H, f); os.makedirs(os.path.dirname(p), exist_ok=True)
     open(p, 'wb').write(data)
 print('ported', C, len(files), 'files listed')

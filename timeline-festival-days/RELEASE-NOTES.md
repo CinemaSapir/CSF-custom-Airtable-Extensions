@@ -25,12 +25,15 @@ See /workspace/csf-demo-v13/PROD-RELEASE-TIMELINE-V010-2026-10-10.md
 
 ## v0.2.8 — the owner 12:17: the cross-section time snaps to the nearest 5 min (13:07 → 13:05, 13:08 → 13:10, x:x7.5 up). One plan (xsPlan) drives the band clock, the axis time tag, the band position (its centre sits on the rounded time) and the minute range the window picks items from. DST-safe (wall-clock minutes), works with compress ON. Includes v0.2.7 (status panel, other worker), first released with this version.
 
-## v0.2.11 — the owner 16:43 / 16:50 / 17:01 (released 2026-10-10 17:26 IDT)
-- Config row search far more flexible (shared hook v4 + status-panel v5): normalised Extension values, per-extension aliases (timeline-festival-days, timeline festival days, timeline, program-by-day, טיימליין, פרוגרמה), token + contains match, primary field / Display_Name / GitHub_URL folder when Extension is hidden or empty, a Variant equal to an alias counts as the default, any Variant accepted when no empty one. «מצב חיבור» always lists the seen rows (primary, Extension, Variant) with their score.
-- Tasks, Petty Cash, Requests, transactions, Notebook and Approvals removed from the timeline (defaults, table specs, «תחומים», status checks, right pane); an Option_List_6 line naming one is skipped silently.
-- Header ✕ now shrinks a column to the left strip (⇤ removed; «תחומים» still hides a table). Funnel on every tab.
-- Cross-section: pills half as wide (6 per row) with a 2-line title (default Number_2 6 → 12); the window's own funnel at the far left of its row (only what runs at the centre time · no cancelled · tables · hidden records · «נקה הכל»).
-- 👁 left of every title (timeline cards, all-day chips, window pills) hides that record, saved per user; «נקה» / «נקה הכל» bring them back; the top bar and «מצב חיבור» show the hidden count.
-- Banner: the small date text sits right of «יום N · פסטיבל» + time.
-
-## v0.2.12 — shared hook v4.1 sync (+ useExtensionConfigOptional, additive) so all 5 extensions ship byte-identical shared files (released 2026-10-10 17:39 IDT)
+## v0.2.13 — the owner 04:54 URGENT: PROD crash «TypeError: Cannot read properties of undefined (reading 'date') at gI (bundle.js:743:129)»
+- Root cause (mapped with a byte-identical rebuild of the v0.2.12 PROD bundle + sourcemap: same CLI esbuild 0.25.12 options and generated entry):
+  gI = JumpControl (Timeline.tsx), col 129 = `dayOf(days, cur).date`. dayOf clamps the index, so it is undefined ONLY when days = [].
+  days come from Date_1 → Date_2 of the resolved config (Extension_Config row / right pane / code 16.10–10.11); buildDays returns []
+  when that range is reversed (Date_1 after Date_2) or longer than 400 days. Festival Days (empty, Date field hidden) only names days
+  and a slot outside the range is clamped — neither crashes (reproduced in the harness: only the bad range blanks the element).
+- Fix: no days → friendly empty state «לא נמצאו ימי פסטיבל — בדקו שטבלת Festival Days ושדה Date מופעלים באלמנט» + the exact reason
+  (reversed / > 400 days, with the dates and where they came from) + the «מצב חיבור» panel forced open. dayOf returns NO_DAY instead of
+  undefined; columnStates / day separators / partsOf / planFields guarded.
+- Error boundaries: top level around <Root/> and around the Loader (inside the config provider) → Hebrew error screen
+  «הטיימליין נתקל בשגיאה ולא הוצג», «הצג פרטים» (message + stack + version), «נסו שוב», plus the status panel (in its own boundary).
+- Tests: tests/v0213.test.ts (7) + harness/cdp-v0213.mjs (11 real-browser checks; harness switches fdempty / fdnodate / outside / d1 / d2 / crash).

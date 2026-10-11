@@ -19,4 +19,5 @@ node "$H/cdp-v028.mjs" || fail=1
 node "$H/cdp-v029.mjs" || fail=1
 node "$H/cdp-v0210.mjs" || fail=1
 node "$H/cdp-v0211.mjs" || fail=1
+node "$H/cdp-v0213.mjs" || fail=1
 exit $fail

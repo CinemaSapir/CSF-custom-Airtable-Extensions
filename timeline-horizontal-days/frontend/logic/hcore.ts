@@ -4,7 +4,7 @@
  * a Seg's `y`/`h` are the distance from the right edge of the time area (`u`) and the width, so yOf / mOf /
  * xsPlan / axisTicks from core.ts work unchanged on the horizontal axis.
  */
-import {DAY_MIN, allDayOn, assignLanes, busyHours, compressedHeight, mergeLodging, type Day, type Item, type LodgeCluster, type Seg} from './core';
+import {DAY_MIN, NO_DAY, allDayOn, assignLanes, busyHours, compressedHeight, mergeLodging, type Day, type Item, type LodgeCluster, type Seg} from './core';
 
 /** sizes (px) — row header width, lane pitch, bar height, day separator width */
 export const HW = 200;
@@ -147,7 +147,7 @@ export function rowLayout(t: string, items: Item[], days: Day[], uOf: (m: number
 /** per row: open, or closed into the chip row — by hand (⇤ / ✕ shrink) or quiet (no items on the centre day, «כווץ שורות ריקות») */
 export type HRowState = {open: boolean; manual: boolean; quiet: boolean; count: number};
 export function hRowStates(k: number, days: Day[], tables: string[], items: Item[], o: {closed: Set<string>; forceOpen: Set<string>; collapseEmpty: boolean}): {[t: string]: HRowState} {
-    const d = days[k];
+    const d = days[k] ?? NO_DAY; // v0.1.1
     const a = k * DAY_MIN,
         b = a + DAY_MIN;
     const out: {[t: string]: HRowState} = {};

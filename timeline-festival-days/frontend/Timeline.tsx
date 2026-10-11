@@ -39,6 +39,7 @@ import {
     columnStates,
     dayBar,
     dayOf,
+    NO_DAY,
     emptyFilters,
     fmt,
     axisTicks,
@@ -696,7 +697,7 @@ export function Timeline(p: TimelineProps) {
         if (s.kind === 'hr') {
             // v0.2.2: lines + labels come from ONE tick list (axisTicks) below
         } else if (s.kind === 'day') {
-            const d = p.days[s.k];
+            const d = p.days[s.k] ?? NO_DAY;
             const b = dayBar(d, fl, words);
             tops.push(
                 <div key={`d${si}`} className={`dayh ${phase(d.n, fl)}`} style={{top: s.y, height: s.h, background: phaseBg(phase(d.n, fl))}} data-slot={si === 0 ? 'Heading_2' : undefined}>

@@ -55,7 +55,7 @@ export type LogicalKey = 'name' | 'start' | 'end' | 'date' | 'dateEnd' | 'slots'
 export type Plan = {fields: Partial<Record<LogicalKey, unknown>>; needsSlot: boolean};
 const partsOf = (days: Day[], m: number) => {
     const k = Math.max(0, Math.min(days.length - 1, Math.floor(m / DAY_MIN)));
-    return {date: days[k].date, min: m - k * DAY_MIN};
+    return {date: days[k]?.date ?? '', min: m - k * DAY_MIN};
 };
 const iso = (days: Day[], m: number) => {
     const p = partsOf(days, m);
@@ -71,6 +71,7 @@ export function planFields(
     days: Day[],
     op: Op,
 ): Plan | {error: string} {
+    if (!days.length) return {error: 'אין ימים בציר הזמן (Date_1 / Date_2)'}; // v0.2.13
     const sp = specOf(table);
     const c = canEdit(table, op);
     if (!sp || !c.ok) return {error: c.ok ? 'טבלה לא מוכרת' : c.reason};

@@ -30,6 +30,7 @@ import {
     normalizeOff,
     dayBar,
     dayOf,
+    NO_DAY,
     emptyFilters,
     fmt,
     axisTicks,
@@ -690,7 +691,7 @@ export function HTimeline(p: TimelineProps) {
     segs.forEach((s, si) => {
         if (s.y + s.h < vis0 - 400 || s.y > vis1 + 400) return;
         if (s.kind === 'day') {
-            const d = p.days[s.k];
+            const d = p.days[s.k] ?? NO_DAY;
             const ph = phase(d.n, fl);
             const b = dayBar(d, fl, words);
             under.push(
