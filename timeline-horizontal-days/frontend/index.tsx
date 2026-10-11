@@ -11,7 +11,8 @@ import {ConfigEditor} from './ConfigEdit';
 import {EDIT_TOGGLE_KEY, MAPPING_TOGGLE_KEY, looseField, STATUS_TOGGLE_KEY, editToggleProperty, isEditOn, isMappingOn, isStatusOn, mappingToggleProperty, statusToggleProperty, type StatusFilter, type StatusSource} from './statusCore';
 import type {Writer} from './EditUi';
 import {mapFields, type FieldLike} from './logic/edit';
-import {FILTER_SLOTS, buildDays, daysProblem, passCol, distinctVals, filterKind, israelParts, parseOp, parseRef, parseRes, pickRes, splitVals, tzModeOf, type Day, type FilterOp, type ColFilters} from './logic/core';
+import {FILTER_SLOTS, buildDays, daysProblem, distinctVals, filterKind, israelParts, parseRes, pickRes, tzModeOf, type Day} from './logic/core';
+import {H_OPS, OP_FULL, OP_HE, defaultFilterFields, hPassCol, noVals, parseFilterCell, parseHOp, splitList, type HColFilter, type HColFilters, type HFilterLine, type HOp} from './logic/hfilter';
 import {names as namesOf, readItems, type RecView, type TableInput} from './logic/read';
 import {FESTIVAL_DAY_FIELDS, LOOKUP_TABLES, REMOVED_TABLES, TABLE_SPECS, type TableSpec} from './logic/tables';
 /** v0.2.11: Option_List_6 rows naming a removed table (Tasks, Petty Cash, …) are dropped silently — no notice, no ✗ */
@@ -40,7 +41,7 @@ export function findLoose<T extends {name: string}>(list: readonly T[], aliases:
 const HE_LABEL: {[k: string]: string} = Object.fromEntries(TABLE_LIST.split('\n').map(r => r.split('|').map(x => x.trim())).map(([k, l]) => [k, l]));
 const FILTERABLE = /^(singleSelect|multipleSelects|multipleRecordLinks|singleCollaborator|multipleCollaborators|multipleLookupValues|singleLineText|multilineText|formula|rollup)$/;
 /** custom-property keys must be plain identifiers (table names have spaces) */
-export const fkey = (k: string, part: 'field' | 'op' | 'vals') => `f_${k.replace(/[^A-Za-z0-9]/g, '_')}_${part}`;
+export const fkey = (k: string, part: 'field' | 'op' | 'vals' | 'more') => `f_${k.replace(/[^A-Za-z0-9]/g, '_')}_${part}`;
 export const CpCtx = createContext<{[k: string]: unknown}>({});
 function getCustomProperties(base: Base) {
     const props: Array<Record<string, unknown> & {key: string; label: string; type: 'table' | 'string' | 'enum' | 'field' | 'boolean'}> = [
@@ -59,8 +60,10 @@ function getCustomProperties(base: Base) {
         const he = HE_LABEL[sp.key] || sp.key;
         props.push(
             {key: fkey(sp.key, 'field'), label: `סינון ${he} · שדה`, type: 'field', table: t, shouldFieldBeAllowed: (f: {config: {type: string}}) => FILTERABLE.test(String(f.config.type))},
-            {key: fkey(sp.key, 'op'), label: `סינון ${he} · תנאי`, type: 'enum', possibleValues: [{value: 'any', label: 'הוא אחד מ… (is any of)'}, {value: 'none', label: 'אינו אחד מ… (is none of)'}], defaultValue: 'any'},
-            {key: fkey(sp.key, 'vals'), label: `סינון ${he} · ערכים (מופרדים ב-|, ריק = בלי סינון)`, type: 'string', defaultValue: ''},
+            {key: fkey(sp.key, 'op'), label: `סינון ${he} · תנאי`, type: 'enum', possibleValues: H_OPS.map(o => ({value: o, label: OP_FULL[o]})), defaultValue: 'any'},
+            {key: fkey(sp.key, 'vals'), label: `סינון ${he} · ערכים (מופרדים ב-|, ריק = רק תפריט בלי סינון)`, type: 'string', defaultValue: ''},
+            // v0.1.2: more filter fields for this table, one per line: «Field <op> v1|v2» (op: הוא / אינו / מכיל / ריק / לא ריק …)
+            {key: fkey(sp.key, 'more'), label: `סינון ${he} · שדות נוספים (שורה לכל שדה: «שדה הוא ערך|ערך»)`, type: 'string', defaultValue: ''},
         );
     }
     return props as unknown as Parameters<typeof useCustomProperties>[0] extends (b: Base) => infer R ? R : never;
@@ -277,6 +280,9 @@ function recView(table: Table, rec: AirtableRecord, cache: Map<string, Field | n
 
 const REQUIRED: {[time in TableSpec['time']]: Array<keyof TableSpec>} = {own: ['start'], borrow: ['slots'], date: [], lodging: ['start'], stamp: []};
 
+/** v0.1.2: one configured filter of a table (resolved or not) */
+export type FilterSpec = {field: string; found: boolean; kind: 'select' | 'link' | 'text'; op: HOp; vals: string[]; declared: boolean; source: string};
+type TableFilterInfo = {field: string; kind: 'select' | 'link' | 'text'; op: HOp; values: string[]; source: string; options: string[]};
 type StatusCtx = {variant: string; paneConfigTable: Table | null; missingTables: string[]; fdTable: Table | null; wanted: string[]};
 function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: string[]; hasDays: boolean; st: StatusCtx}) {
     const [hiddenN, setHiddenN] = useState(0); // v0.2.11: 👁-hidden records (from the Timeline) → «מצב חיבור»
@@ -351,33 +357,55 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
                 </StatusSafe>
             </>
         );
-    // ---- v0.2.4 per-table filters: right pane first, else Extension_Config Filter_N ('Table.Field' + Filter_Operator_N + Filter_Value_N)
-    const tableFilters: {[t: string]: {field: string; kind: 'select' | 'link' | 'text'; op: FilterOp; values: string[]; source: string; options: string[]}} = {};
+    // ---- v0.1.2 (item 10) per-table filter LIST: right pane (field / op / values + «more» lines) wins per table, else every
+    // Extension_Config Filter_N line `Table.Field <op> v1|v2` naming the table (loose names, Hebrew/English ops); no list → status /
+    // type / location-like fields as dropdowns (no default condition). Conditions = the funnel defaults (timeline AND window).
+    const tableFilters: {[t: string]: TableFilterInfo} = {};
+    const filterSpecs: {[t: string]: FilterSpec[]} = {};
     for (const l of tableData) {
-        let f: Field | null = null,
-            op: FilterOp = 'any',
-            vals: string[] = [],
-            source = '';
+        const sp = TABLE_SPECS.find(s => s.key === l.key);
+        const names = [l.key, HE_LABEL[l.key] || '', l.table.name, ...(sp?.aliases ?? [])].filter(Boolean).map(looseName);
+        const specs: FilterSpec[] = [];
+        const add = (ln: HFilterLine, source: string) => {
+            let f = findLoose(l.table.fields, [ln.field]);
+            // a field name that itself contains an operator word («Check in») → the whole text is the field
+            if (!f && ln.op !== null) {
+                const whole = [ln.field, OP_HE[ln.op], ...ln.vals].join(' ');
+                const g = findLoose(l.table.fields, [whole]);
+                if (g) {
+                    f = g;
+                    ln = {...ln, field: g.name, op: null, vals: []};
+                }
+            }
+            specs.push({field: f?.name ?? ln.field, found: !!f, kind: f ? filterKind(String(f.type)) : 'text', op: ln.op ?? 'any', vals: ln.vals, declared: ln.op === null, source});
+            if (!f) notices.push(`${l.key}: שדה הסינון ${ln.field} לא נמצא (${source}) — חסר או מוסתר מהאלמנט`);
+        };
         const pf = cp[fkey(l.key, 'field')] as Field | undefined;
-        if (pf && typeof pf === 'object' && 'id' in pf) {
-            f = l.table.getFieldByIdIfExists(pf.id) ?? null;
-            op = parseOp(cp[fkey(l.key, 'op')]);
-            vals = splitVals(cp[fkey(l.key, 'vals')]);
-            source = 'right pane';
+        const more = String(cp[fkey(l.key, 'more')] ?? '').trim();
+        if ((pf && typeof pf === 'object' && 'id' in pf) || more) {
+            const f0 = pf && typeof pf === 'object' && 'id' in pf ? l.table.getFieldByIdIfExists(pf.id) : null;
+            if (f0) {
+                const op = parseHOp(cp[fkey(l.key, 'op')]);
+                const vals = noVals(op) ? [] : splitList(cp[fkey(l.key, 'vals')]);
+                specs.push({field: f0.name, found: true, kind: filterKind(String(f0.type)), op, vals, declared: !vals.length && !noVals(op), source: 'right pane'});
+            }
+            for (const ln of parseFilterCell(more, undefined, undefined, true)) if (!ln.table || names.includes(looseName(ln.table))) add(ln, 'right pane · שורות נוספות');
         } else {
             for (const n of FILTER_SLOTS) {
-                const ref = parseRef(cfg.raw(`Filter_${n}` as never));
-                if (!ref || looseName(ref.table) !== looseName(l.key)) continue;
-                f = findLoose(l.table.fields, [ref.field]);
-                op = parseOp(cfg.raw(`Filter_Operator_${n}` as never));
-                vals = splitVals(cfg.raw(`Filter_Value_${n}` as never));
-                source = `Extension_Config Filter_${n}`;
-                if (!f) notices.push(`${l.key}: שדה הסינון ${ref.field} לא נמצא (Filter_${n})`);
-                break;
+                const cell = cfg.raw(`Filter_${n}` as never);
+                for (const ln of parseFilterCell(cell, cfg.raw(`Filter_Operator_${n}` as never), cfg.raw(`Filter_Value_${n}` as never))) {
+                    if (!ln.table || !names.includes(looseName(ln.table))) continue;
+                    add(ln, `Extension_Config Filter_${n}`);
+                }
             }
         }
-        // v0.2.5: every select / link field of the table feeds the column menu's field chooser
-        const ff = l.table.fields.filter(x => filterKind(String(x.type)) !== 'text');
+        if (!specs.length)
+            for (const name of defaultFilterFields(l.table.fields.map(x => ({name: x.name, type: String(x.type)}))))
+                specs.push({field: name, found: true, kind: filterKind(String(l.table.fields.find(x => x.name === name)?.type ?? '')), op: 'any', vals: [], declared: true, source: 'ברירת מחדל (סטטוס/סוג/מיקום)'});
+        filterSpecs[l.key] = specs;
+        // every select / link field + every resolved filter field (text too) feeds the funnel's field chooser
+        const okNames = new Set(specs.filter(x => x.found).map(x => x.field));
+        const ff = l.table.fields.filter(x => filterKind(String(x.type)) !== 'text' || okNames.has(x.name));
         const fx: {[id: string]: {[field: string]: string[]}} = {};
         for (const r of l.records) {
             const o: {[field: string]: string[]} = {};
@@ -394,31 +422,22 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
             fx[r.id] = o;
         }
         for (const it of res.items) if (it.table === l.key) it.fx = fx[it.id] ?? {};
-        if (!f) continue;
-        const byId: {[id: string]: string[]} = {};
-        for (const r of l.records) {
-            let v: unknown;
-            try {
-                v = r.getCellValue(f);
-            } catch {
-                v = undefined;
-            }
-            byId[r.id] = namesOf(v);
-        }
-        const kind = filterKind(String(f.type));
-        tableFilters[l.key] = {field: f.name, kind, op, values: vals, source, options: []};
-        for (const it of res.items) if (it.table === l.key) {
-            it.fv = byId[it.id] ?? [];
-            if (it.fx && !it.fx[f.name] && it.fv.length) it.fx[f.name] = it.fv; // text fields too (right pane allows them)
+        // the window pill ▾ (multi-select, window only) uses the first resolved select/link filter field
+        const prim = specs.find(x => x.found && x.kind !== 'text') ?? specs.find(x => x.found);
+        if (prim) {
+            tableFilters[l.key] = {field: prim.field, kind: prim.kind, op: prim.op, values: prim.vals, source: prim.source, options: []};
+            for (const it of res.items) if (it.table === l.key) it.fv = it.fx?.[prim.field] ?? [];
         }
     }
-    // v0.2.5: the right pane / Filter_N value list is the DEFAULT behind each column's funnel menu (users can change it, saved per user)
-    const colDefaults: ColFilters = {};
-    for (const t in tableFilters) {
-        const tf = tableFilters[t];
-        if (tf.values.length) colDefaults[t] = {['f:' + tf.field]: {op: tf.op, vals: tf.values}};
-        tableFilters[t].options = tf.kind !== 'text' ? distinctVals(res.items.filter(i => i.table === t).map(i => i.fv)) : [];
+    // the conditions are the DEFAULT behind each table's funnel (users can change it, saved per user; «ברירת מחדל» resets)
+    const colDefaults: HColFilters = {};
+    for (const t in filterSpecs) {
+        const c: HColFilter = {};
+        for (const x of filterSpecs[t]) if (x.found && !x.declared && (x.vals.length || noVals(x.op))) c['f:' + x.field] = {op: x.op, vals: x.vals};
+        if (Object.keys(c).length) colDefaults[t] = c;
     }
+    for (const t in tableFilters) tableFilters[t].options = tableFilters[t].kind !== 'text' ? distinctVals(res.items.filter(i => i.table === t).map(i => i.fv)) : [];
+    const filterFields = Object.fromEntries(Object.entries(filterSpecs).map(([t, l]) => [t, l.filter(x => x.found).map(x => x.field)]));
 
     const foundKeys = new Set(tableData.map(l => l.key));
     const columns: ColumnDef[] = cfg.options('Option_List_6').filter(r => !isRemoved(r.value)).map(r => {
@@ -497,7 +516,7 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
             hiddenJunk={res.hidden}
             notices={notices}
             texts={Object.fromEntries(Object.keys(TIMELINE_DEFAULTS).map(k => [k, cfg.raw(k as never)]))}
-            res={{steps, def: pickRes(steps, cfg.raw('Dropdown_Default_3')), label: cfg.raw('Dropdown_Label_3') || 'רזולוציה'}}
+            res={{steps, def: pickRes(steps, cfg.raw('Dropdown_Default_3'), 720), label: cfg.raw('Dropdown_Label_3') || 'רזולוציה'}}
             toggles={{
                 collapse: {label: cfg.toggleSpec(1).label, def: cfg.toggle('Toggle_1')},
                 compress: {label: cfg.toggleSpec(2).label, def: cfg.toggle('Toggle_2')},
@@ -520,9 +539,10 @@ function Screen({loaded, notices: n0, hasDays, st}: {loaded: Loaded[]; notices: 
             dayIdByDate={dayIdByDate}
             tableFilters={Object.fromEntries(Object.entries(tableFilters).map(([t, v]) => [t, {field: v.field, options: v.options}]))}
             colDefaults={colDefaults}
+            filterFields={filterFields}
             onHiddenCount={setHiddenN}
         />
-        <TimelineStatus st={st} loaded={tableData} items={res.items} tableFilters={tableFilters} colDefaults={colDefaults} hiddenN={hiddenN} />
+        <TimelineStatus st={st} loaded={tableData} items={res.items} tableFilters={tableFilters} filterSpecs={filterSpecs} colDefaults={colDefaults} hiddenN={hiddenN} />
         </>
     );
 }
@@ -534,7 +554,8 @@ function TimelineStatus(props: {
     loaded: Loaded[];
     items: ReadonlyArray<{table: string}>;
     tableFilters: {[t: string]: {field: string; op: string; values: string[]; source: string}};
-    colDefaults: ColFilters;
+    filterSpecs?: {[t: string]: FilterSpec[]};
+    colDefaults: HColFilters;
     /** v0.2.11: records the user hid with 👁 */
     hiddenN?: number;
     /** v0.2.13: shown regardless of the right-pane toggle (empty state / crash screen) */
@@ -572,21 +593,28 @@ function TimelineStatus(props: {
     }
     for (const m of st.missingTables) sources.push({label: 'טבלה מ-Option_List_6', table: null, via: 'לא נמצאה ✗', ok: false, note: m});
     sources.push({label: 'Festival Days (שמות ימים)', table: st.fdTable?.name ?? null, via: st.fdTable ? 'Source_Table_3 / לפי שם' : 'לא נמצאה', ok: true, note: st.fdTable ? null : 'רשות — שמות ימים כלליים'});
-    const filters: StatusFilter[] = Object.entries(tableFilters).map(([t, f]) => {
+    // v0.1.2: one line per configured filter field (resolved ✓ / not found = missing or hidden from the element ✗)
+    const filters: StatusFilter[] = [];
+    for (const [t, list] of Object.entries(props.filterSpecs ?? {})) {
         const mine = items.filter(i => i.table === t);
-        const active = !!colDefaults[t];
-        return {
-            label: HE_LABEL[t] || t,
-            table: loaded.find(l => l.key === t)?.table.name ?? t,
-            field: f.field,
-            via: f.source,
-            op: f.op === 'none' ? 'אינו אחד מ (is none of)' : 'הוא אחד מ (is any of)',
-            values: f.values,
-            matched: active ? mine.filter(i => passCol(i as never, colDefaults)).length : mine.length,
-            total: mine.length,
-            extra: active ? 'ברירת מחדל של המשפך (המשתמש יכול לשנות)' : 'ללא סינון',
-        };
-    });
+        for (const f of list) {
+            const one: HColFilters = f.found && !f.declared ? {[t]: {['f:' + f.field]: {op: f.op, vals: f.vals}}} : {};
+            filters.push({
+                label: HE_LABEL[t] || t,
+                table: loaded.find(l => l.key === t)?.table.name ?? t,
+                field: f.field,
+                via: `${f.source}${f.found ? '' : ' · לא נמצא ✗'}`,
+                op: f.declared ? 'תפריט בלבד (בלי תנאי)' : OP_FULL[f.op],
+                values: f.vals,
+                matched: f.found && !f.declared ? mine.filter(i => hPassCol(i as never, one)).length : mine.length,
+                total: mine.length,
+                extra: !f.found ? 'השדה חסר בטבלה או מוסתר מהאלמנט — הפעילו אותו בהגדרות האלמנט' : f.declared ? 'מוצג במשפך של הטבלה' : 'ברירת מחדל של המשפך (המשתמש יכול לשנות)',
+                bad: !f.found,
+            });
+        }
+    }
+    const allOn = Object.keys(colDefaults).length;
+    void tableFilters;
     return (
         // the timeline fills the viewport, so the panel docks over it (bottom-left, scrolls; click the header to fold it)
         <div dir="rtl" style={{position: 'fixed', left: 8, bottom: 28, zIndex: 50, width: 'min(980px, calc(100vw - 16px))', maxHeight: '62vh', overflow: 'auto', boxShadow: '0 4px 18px rgba(0,0,0,.18)', borderRadius: 8, background: '#fff'}}>
@@ -603,7 +631,7 @@ function TimelineStatus(props: {
                 fieldsUsed={['Extension', 'Variant', ...Object.keys(TIMELINE_DEFAULTS)]}
                 sources={sources}
                 filters={filters}
-                filtersTitle="סינון לפי טבלה (חלונית ימנית → Filter_N)"
+                filtersTitle={`סינון לפי טבלה (חלונית ימנית → Filter_N «Table.Field הוא ערך») · ${allOn} טבלאות עם תנאי ברירת מחדל`}
                 extraTitle="הערה"
                 notes={[`טבלאות מבוקשות (Option_List_6): ${st.wanted.join(' · ') || '—'}`, `👁 רשומות מוסתרות (למשתמש הזה): ${props.hiddenN ?? 0}${props.hiddenN ? ' · «נקה» / «נקה הכל» מחזירים' : ''}`]}
                 version={VERSION}

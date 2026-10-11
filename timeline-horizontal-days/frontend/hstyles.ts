@@ -1,4 +1,4 @@
-/* «טיימליין אופקי» v0.1.0 — horizontal RTL grid. Same Option B chrome as the vertical (SDK grays on white, table fill names,
+/* «טיימליין אופקי» v0.1.0 (+ v0.1.2 block at the end) — horizontal RTL grid. Same Option B chrome as the vertical (SDK grays on white, table fill names,
  * redDark1 only for Now and the cross-section); appended after the vertical CSS. */
 export const HCSS = String.raw`
 .htl .hgw{position:relative;flex:1 1 auto;min-height:0;border-top:1px solid var(--sdk-grayLight1)}
@@ -99,4 +99,53 @@ body.tl-rowresizing,body.tl-rowresizing *{cursor:row-resize!important;user-selec
 .htl .hdropline{position:absolute;right:0;height:3px;margin-top:-1.5px;background:var(--sdk-grayDark1);border-radius:2px;z-index:30;pointer-events:none}
 .htl .dayempty{position:sticky;right:var(--HW);padding:18px;color:var(--sdk-gray);font-size:14px}
 .htl .hmenu .hide.dis{opacity:.4}
+/* ===== v0.1.2 (the owner 05:20) ===== */
+/* #7 colours/chrome = the vertical's exact tokens (.ev / .lbar / .lseg .lc / .ev .lens) */
+.htl .hb{border:1px solid rgba(0,0,0,.06);border-right:4px solid;color:var(--ink)}
+.htl .hb.hatch{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 4px,transparent 4px 8px)}
+.htl .hlab{color:var(--ink)}
+.htl .hlab .t{color:var(--sdk-grayDark1)}
+.htl .hlc{background:color-mix(in srgb,var(--sdk-purpleDark1) 14.9%,transparent);border:2px solid var(--sdk-purpleDark1);border-right-width:5px}
+.htl .hcnt{font-size:11.5px;font-weight:800;border-radius:9px;padding:0 7px;height:16px;line-height:16px}
+.htl .hcnt.mag{font-size:12.5px}
+.htl .hgst{border-color:color-mix(in srgb,var(--sdk-purpleDark1) 66.7%,transparent)}
+.htl .hlens{background:var(--f);box-shadow:inset 0 0 0 1px var(--sdk-redLight1);border-radius:4px}
+.htl .hds{box-shadow:0 1px 0 var(--sdk-grayLight1),0 -1px 0 var(--sdk-grayLight1)}
+/* #9 day pill on the ruler: the full vertical title, sticky inside its day */
+.htl .hdp{max-width:none;font-weight:800}
+/* #1 cross-section window: its cards scroll inside it (wheel over it never moves the timeline) */
+.htl .win .wslide>.wbody{display:flex;align-items:stretch;gap:6px;min-height:0;overflow:hidden}
+.htl .win .wslide>.wbody>.wg{display:grid;flex:1 1 auto;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;margin:0;padding:0 0 0 4px;box-shadow:none;border:0;grid-template-rows:none!important;grid-auto-rows:var(--wcH);gap:3px 4px;align-content:start;scrollbar-width:thin;scrollbar-color:var(--sdk-grayLight1) transparent}
+.htl.nox .win .wslide>.wbody{visibility:hidden}
+/* #4 cards ≥30% smaller (height 40→28, padding, fonts, tag, eye); 8 per row */
+.htl{--wcH:28px}
+.htl .wg{grid-template-columns:repeat(8,minmax(0,1fr))}
+.htl .wc{padding:2px 4px;gap:3px;border-radius:4px;border-inline-start-width:3px}
+.htl .wc .tg{font-size:7px;padding:0 3px;border-radius:2px;margin-top:1px;line-height:10px}
+.htl .wc .nm{font-size:9px;line-height:1.2}
+.htl .wc .eye{font-size:8px}
+.htl .wc.more{font-size:9px}
+.htl .wc.now .nm::before{font-size:7px}
+/* #2 shrunk tables / 👁-hidden records → vertical tabs at the window's LEFT edge (like the vertical's closed-column strips) */
+.htl .wstrip{display:flex;flex:none;gap:3px;align-items:stretch;order:2}
+.htl .wst{display:flex;flex-direction:column;align-items:center;justify-content:space-between;width:22px;padding:4px 0 3px;border:1px solid var(--sdk-grayLight1);border-top:3px solid var(--c,var(--sdk-gray));border-radius:4px;background:var(--f,var(--sdk-grayLight2));cursor:pointer;text-decoration:none;color:var(--sdk-grayDark1);overflow:hidden}
+.htl .wst:hover{box-shadow:0 0 0 2px color-mix(in srgb,var(--c,var(--sdk-gray)) 30%,transparent)}
+.htl .wst .wsl{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:0;flex:1 1 auto;color:color-mix(in srgb,var(--c,var(--sdk-grayDark1)) 80%,black)}
+.htl .wst .c{font-size:9.5px;color:var(--sdk-gray)}
+.htl .wst.rec{background:#fff;border-style:dashed;border-top-style:solid}
+.htl .wst.rec .wsl{font-weight:600;color:var(--sdk-grayDark1)}
+/* #8 rows shrink to a few px: text keeps its size and is clipped; thin rows show only the coloured bars */
+.htl .hrh{overflow:hidden}
+.htl .hrh .hrz{bottom:0;height:6px}
+.htl .hrow.thin .hrh .l2,.htl .hrow.thin .hrh .hgl2{display:none}
+.htl .hrow.thin .hrh .l1{top:0}
+.htl .hrow.thin .hb .rz{display:none}
+/* item 10: funnel ops (הוא · אינו · מכיל · לא מכיל · ריק · לא ריק) + free text value; configured fields marked */
+.htl .cfmenu .hcfop{flex-wrap:wrap}
+.htl .cfmenu .hcfop a{flex:1 0 30%}
+.htl .cfmenu .cfd a.cfg{border-color:var(--sdk-grayDark1)}
+.htl .cfmenu .cftx{padding:0 8px 6px}
+.htl .cfmenu .cftx input{width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--sdk-grayLight1);border-radius:5px}
+.htl .cfmenu .cfl.dim{opacity:.4;pointer-events:none}
+.htl .cfmenu .cfnv{padding:0 10px 6px}
 `;

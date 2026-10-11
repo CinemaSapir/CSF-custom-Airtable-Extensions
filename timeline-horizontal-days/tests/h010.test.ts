@@ -188,7 +188,7 @@ test('source: 👁 per record (bar label + window card), xsPlan for clock/strip/
     assert.match(src, /winPass\(i, passT, wShown, wOff\) && passPicked\(i, wPick\)/);
     assert.match(src, /className=\{`wf /);
     assert.match(src, /className=\{`hchip /);
-    assert.match(src, /!hid\.has\(i\.id\) && passQ\(i\) && passCol\(i, CF\)/);
+    assert.match(src, /!hid\.has\(i\.id\) && passQ\(i\) && hPassCol\(i, CF\)/); // v0.1.2: hfilter (6 ops)
     assert.match(src, /const LS = 'csf\.timelineH\.v1\.'/, 'per-user state separate from the vertical block');
     assert.match(HCSS, /\.htl \.hvp\{[^}]*direction:rtl/);
     assert.match(HCSS, /\.htl \.hrul\{position:sticky;top:0/);

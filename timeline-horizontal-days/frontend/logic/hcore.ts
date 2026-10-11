@@ -15,7 +15,10 @@ export const ROW_MIN = 44;
 export const GROUP_GAP = 6;
 export const SEP_W = 26;
 export const RULER_H = 34;
-export const LANE_MIN = 26;
+/** v0.1.2 (the owner 05:20 #8): a row shrinks all the way down; text never scales — it is clipped, and hidden below one line */
+export const LANE_MIN = 4;
+/** below this lane height bars show no text (one 12.5px line needs ~16px) */
+export const TEXT_MIN = 16;
 export const LANE_MAX = 64;
 export const LODGE_HEAD = 18;
 export const LODGE_ROW = 17;
@@ -115,13 +118,16 @@ export type HRow = {t: string; h: number; groups: HGroup[]; laneH: number};
 /** one table row: groups stacked, lanes of `laneH` px (row height resize = taller lanes), min ROW_MIN */
 export function rowLayout(t: string, items: Item[], days: Day[], uOf: (m: number) => number, opts: {laneH?: number; measure?: Measure; lodgingTable?: string} = {}): HRow {
     const laneH = Math.max(LANE_MIN, Math.min(LANE_MAX, opts.laneH ?? LANE));
+    // v0.1.2: shrunk below the default → no minimum row height, padding shrinks with the lanes
+    const tiny = laneH < LANE;
+    const pad = tiny ? Math.max(1, Math.round(laneH / 4)) : ROW_PAD;
     const lt = opts.lodgingTable ?? 'Lodging';
     const keys = sortGroups(items.map(i => groupKey(t, i, lt)));
     const groups: HGroup[] = [];
-    let y = ROW_PAD;
+    let y = pad;
     keys.forEach((k, gi) => {
         const mine = items.filter(i => groupKey(t, i, lt) === k);
-        if (gi) y += GROUP_GAP;
+        if (gi) y += tiny ? Math.min(GROUP_GAP, pad * 2) : GROUP_GAP;
         if (t === lt) {
             const lodge: HLodge[] = mergeLodging(mine).map(c => {
                 const lanes = assignLanes(c.stays);
@@ -141,7 +147,7 @@ export function rowLayout(t: string, items: Item[], days: Day[], uOf: (m: number
         groups.push({key: k, y, h, lanes, bars});
         y += h;
     });
-    return {t, h: Math.max(ROW_MIN, y + ROW_PAD - 2), groups, laneH};
+    return {t, h: tiny ? Math.max(LANE_MIN + 2, y + pad) : Math.max(ROW_MIN, y + ROW_PAD - 2), groups, laneH};
 }
 
 /** per row: open, or closed into the chip row — by hand (⇤ / ✕ shrink) or quiet (no items on the centre day, «כווץ שורות ריקות») */
@@ -167,6 +173,7 @@ export function rowDropTarget(boxes: Array<{t: string; top: number; bottom: numb
 }
 /** row height resize: drag the header's bottom edge → lane height (per user), clamped */
 export function resizeLane(laneH0: number, dy: number, lanes: number): number {
+    // v0.1.2: down to LANE_MIN (4px); text keeps its size (clipped / hidden below TEXT_MIN)
     return Math.round(Math.max(LANE_MIN, Math.min(LANE_MAX, laneH0 + dy / Math.max(1, lanes))));
 }
 
@@ -202,4 +209,12 @@ export function hLiveCounts(items: Item[], days: Day[], m0: number, m1: number):
         if (sp && sp.s < m1 && sp.e > m0) c[i.table] = (c[i.table] || 0) + 1;
     }
     return c;
+}
+
+/** v0.1.2: bar height inside a lane (thin lanes keep a visible coloured bar) */
+export const barH = (laneH: number) => (laneH >= 12 ? laneH - 4 : Math.max(2, laneH - 1));
+/** v0.1.2 (#9): the ruler's day pill sticks to the visible right edge while its day is on screen (same text as the vertical) */
+export function dayPillU(dayU0: number, dayU1: number, viewU: number, pillW: number): number | null {
+    if (dayU1 - dayU0 < pillW + 8) return dayU1 - dayU0 >= 30 ? dayU0 + 4 : null;
+    return Math.max(dayU0 + 4, Math.min(viewU + 6, dayU1 - pillW - 4));
 }

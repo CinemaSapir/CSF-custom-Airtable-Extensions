@@ -40,10 +40,11 @@ test('compress: defaults ON (both toggles); a real user choice is kept, an old s
     assert.equal(keptCompress({compress: false}, false), false); // Extension_Config says OFF
 });
 // (removed in the horizontal repo: vertical-only source check «header: identical controls in one order on every table…»; horizontal equivalent in tests/h010.test.ts)
-test('window pills: ▾ · ⇤ · ✕ in the header order; ⇤ shrinks to the far-left strip, ✕ hides', () => {
+test('window pills (horizontal v0.1.2 #2): ▾ · ✕; ✕ shrinks to the strip at the window\'s left (⇤ gone, like the vertical header ✕)', () => {
     const src = readFileSync('frontend/HTimeline.tsx', 'utf8');
     const w = src.slice(src.indexOf('<span className="wpills"'), src.indexOf('<span className="wemp">'));
-    const ix = [w.search(/className=\{`vdd /), w.search(/className="sh"/), w.search(/className="x"/)];
-    assert.ok(ix.every(x => x > 0) && ix[0] < ix[1] && ix[1] < ix[2], JSON.stringify(ix));
-    assert.ok(/setWOff\(o => toggleIn\(o, x\.t\)\)\}>\s*⇤/.test(w) && /setWHide\(o => toggleIn\(o, x\.t\)\)\}>\s*✕/.test(w));
+    const ix = [w.search(/className=\{`vdd /), w.search(/className="x"/)];
+    assert.ok(ix.every(x => x > 0) && ix[0] < ix[1], JSON.stringify(ix));
+    assert.ok(!/className="sh"/.test(w));
+    assert.ok(/setWOff\(o => toggleIn\(o, x\.t\)\)\}>\s*✕/.test(w));
 });

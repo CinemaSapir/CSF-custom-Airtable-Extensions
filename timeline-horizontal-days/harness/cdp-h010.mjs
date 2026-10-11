@@ -177,7 +177,8 @@ try {
     await b.js(`document.querySelector('.hrow[data-t="Slots_Events"] .cf2').click()`);
     await sleep(200);
     check('9: the row funnel opens a checkbox menu', await b.js(`!!document.querySelector('.cfmenu .vi')`));
-    await b.js(`document.querySelector('.cfmenu .vi').click()`);
+    // v0.1.2: configured fields come first (Type…); pick the value with most records so the row keeps items on this day
+    await b.js(`[...document.querySelectorAll('.cfmenu .vi')].sort((x,y)=>(+y.querySelector('.n').textContent)-(+x.querySelector('.n').textContent))[0].click()`);
     await sleep(300);
     const n1 = await b.js(`document.querySelectorAll('.hrow[data-t="Slots_Events"] .hb').length`);
     check('9: picking a value narrows that row; the funnel shows a count', n1 < n0 && (await b.js(`/\\d/.test(document.querySelector('.hrow[data-t="Slots_Events"] .cf2').textContent)`)), {n0, n1});

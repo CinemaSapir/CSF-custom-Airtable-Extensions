@@ -6,7 +6,7 @@ V = '/workspace/csf-timeline'
 C = sys.argv[1]
 H_VERSION = json.load(open('package.json'))['version']  # the horizontal keeps its own version
 H = os.getcwd()
-OWN = {'frontend/HTimeline.tsx', 'frontend/hstyles.ts', 'frontend/logic/hcore.ts'}
+OWN = {'frontend/HTimeline.tsx', 'frontend/hstyles.ts', 'frontend/logic/hcore.ts', 'frontend/logic/hfilter.ts', 'tests/v012.test.ts', 'harness/cdp-h012.mjs', 'harness/map-h012.mjs'}
 SKIP_PREFIX = ('evidence/', 'release/')
 SKIP = {'frontend/Timeline.tsx', 'harness/overlay.js', 'harness/e2e-run.sh', 'harness/cdp-real-input.mjs', 'RELEASE-NOTES.md', '.gitignore'}
 files = subprocess.run(['git', '-C', V, 'ls-tree', '-r', '--name-only', C], capture_output=True, text=True, check=True).stdout.split()

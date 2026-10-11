@@ -73,9 +73,9 @@ import {WIN_COLS} from '../frontend/HTimeline';
 import {CSS} from '../frontend/styles';
 const tl = readFileSync('frontend/HTimeline.tsx', 'utf8');
 // (removed in the horizontal repo: vertical-only source check «17:01 #1: header ✕ shrinks…»; horizontal equivalent in tests/h010.test.ts)
-test('17:01 #3: window pills half as wide (6 per row), 2-line title; default Number_2 12 (same 2 rows)', () => {
-    assert.equal(WIN_COLS, 6);
-    assert.match(CSS, /\.wg\{grid-template-columns:repeat\(6,minmax\(0,1fr\)\)\}/);
+test('17:01 #3 (+ horizontal v0.1.2 #4: 8 per row): window pills, 2-line title; default Number_2 12', () => {
+    assert.equal(WIN_COLS, 8);
+    assert.match(CSS, /\.wg\{grid-template-columns:repeat\(6,minmax\(0,1fr\)\)\}/); // shared vertical CSS unchanged; HCSS overrides
     assert.match(CSS, /\.wc \.nm\{[^}]*-webkit-line-clamp:2/);
     assert.equal(TIMELINE_DEFAULTS.Number_2, 12);
 });

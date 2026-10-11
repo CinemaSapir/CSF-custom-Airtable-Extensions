@@ -19,13 +19,6 @@ import {
     winPass,
     winPills,
     passPicked,
-    passCol,
-    colCount,
-    colDims,
-    effectiveCF,
-    normalizeCF,
-    toggleColVal,
-    type ColFilters,
     toggleIn,
     normalizeOff,
     dayBar,
@@ -53,7 +46,8 @@ import {
     type ResStep,
     type Seg,
 } from './logic/core';
-import {HW, LANE, LODGE_HEAD, LODGE_ROW, crowdedIn, hAxis, hLens, hLiveCounts, hRowStates, resizeLane, rowDropTarget, rowLayout, scrollLeftFor, slOf, stickyU, type HRow, type Measure} from './logic/hcore';
+import {HW, LANE, LODGE_HEAD, LODGE_ROW, TEXT_MIN, barH, crowdedIn, dayPillU, hAxis, hLens, hLiveCounts, hRowStates, resizeLane, rowDropTarget, rowLayout, scrollLeftFor, slOf, stickyU, type HRow, type Measure} from './logic/hcore';
+import {OP_HE, hColCount, hColDims, hEffectiveCF, hNormalizeCF, hPassCol, hSetOp, hToggleVal, noVals, type HColFilters, type HOp} from './logic/hfilter';
 import {CSS} from './styles';
 import {HCSS} from './hstyles';
 import {CreatePopover, UndoToast, type CreateReq, type Writer} from './EditUi';
@@ -77,7 +71,9 @@ export type TimelineProps = {
     phaseColors: {fest: string; prep: string; wrap: string};
     colorHex?: HexOf;
     tableFilters?: {[t: string]: {field: string; options: string[]}};
-    colDefaults?: ColFilters;
+    colDefaults?: HColFilters;
+    /** v0.1.2: per table, the configured filter fields (funnel order; right pane / Filter_N / defaults) */
+    filterFields?: {[t: string]: string[]};
     version: string;
     configNote: string;
     userKey: string;
@@ -104,16 +100,27 @@ type Persist = {
     wOff?: string[];
     wHide?: string[];
     wPick?: {[t: string]: string[]};
-    colF?: ColFilters;
+    colF?: HColFilters;
+    /** v0.1.2 persist schema: below 2 → the view defaults (12 h, all tables ON, collapse empty tables + hours) apply again */
+    v?: number;
     hid?: string[];
     wNow?: boolean;
     wNoCancel?: boolean;
 };
 const LS = 'csf.timelineH.v1.';
+export const PERSIST_V = 2;
+/** v0.1.2 (the owner 05:20 #3/#5/#6): saved view choices from v0.1.0/v0.1.1 are dropped once so the new defaults show —
+ *  span 12 h, every table ON, collapse empty tables + empty hours, nothing shrunk in the window. Order, row heights, 👁, funnels stay. */
+export function persistUpgrade(v: Persist): Persist {
+    if (v.v === PERSIST_V) return v;
+    const keep: Persist = {order: v.order, laneH: v.laneH, colF: v.colF, hid: v.hid, wPick: v.wPick, v: PERSIST_V};
+    return keep;
+}
 function loadPersist(key: string): Persist {
     try {
         const v = JSON.parse(localStorage.getItem(LS + key) || '{}');
-        return v && typeof v === 'object' ? v : {};
+        if (!v || typeof v !== 'object') return {};
+        return persistUpgrade(v as Persist);
     } catch {
         return {};
     }
@@ -126,7 +133,9 @@ function savePersist(key: string, p: Persist) {
     }
 }
 /** cross-section cards per row (vertical v0.2.11: 6, half-width, 2-line title) */
-export const WIN_COLS = 6;
+/** v0.1.2 #1: every card is rendered (the window scrolls); a hard cap only against huge lists */
+export const WIN_MAX = 400;
+export const WIN_COLS = 8; // v0.1.2 #4: cards ≥30% smaller → 8 per row (was 6)
 const Rng = ({a, b}: {a: number; b: number}) => <bdi dir="ltr">{`${fmt(a)}–${fmt(b)}`}</bdi>;
 const FF = '"Segoe UI",Heebo,Rubik,"Open Sans",sans-serif';
 function useMeasure(): Measure {
@@ -225,9 +234,10 @@ export function HTimeline(p: TimelineProps) {
     const [wPick, setWPick] = useState<{[t: string]: string[]}>(() =>
         Object.fromEntries(Object.entries(saved.wPick && typeof saved.wPick === 'object' ? saved.wPick : {}).filter(([t, v]) => allT.includes(t) && Array.isArray(v) && v.length).map(([t, v]) => [t, (v as unknown[]).filter((x): x is string => typeof x === 'string')])),
     );
-    const [colF, setColF] = useState<ColFilters>(() => normalizeCF(saved.colF, allT));
+    const [colF, setColF] = useState<HColFilters>(() => hNormalizeCF(saved.colF, allT));
     const [cfDim, setCfDim] = useState<{[t: string]: string}>({});
-    const CF = useMemo(() => effectiveCF(colF, p.colDefaults ?? {}, allT), [colF, p.colDefaults, allT]);
+    const CF = useMemo(() => hEffectiveCF(colF, p.colDefaults ?? {}, allT), [colF, p.colDefaults, allT]);
+    const [cfTxt, setCfTxt] = useState('');
     const [pickAt, setPickAt] = useState<{x: number; y: number}>({x: 0, y: 0});
     const [openDd, setOpenDd] = useState<string | null>(p.initial?.open ?? null);
     const [toast, setToast] = useState<string | null>(null);
@@ -262,7 +272,7 @@ export function HTimeline(p: TimelineProps) {
     const userScrolled = useRef(false);
 
     useEffect(() => {
-        savePersist(p.userKey, {res, collapse: collapseC, compress: compressT, compressUser, xs, shown: [...shown], closed: [...closed], order, laneH, wOff: [...wOff], wHide: [...wHide], wPick, colF, hid: [...hid], wNow, wNoCancel});
+        savePersist(p.userKey, {v: PERSIST_V, res, collapse: collapseC, compress: compressT, compressUser, xs, shown: [...shown], closed: [...closed], order, laneH, wOff: [...wOff], wHide: [...wHide], wPick, colF, hid: [...hid], wNow, wNoCancel});
     }, [p.userKey, res, collapseC, compressT, compressUser, xs, shown, closed, order, laneH, wOff, wHide, wPick, colF, hid, wNow, wNoCancel]);
     useEffect(() => {
         const id = setTimeout(() => setQ(qIn.trim()), 250);
@@ -310,7 +320,7 @@ export function HTimeline(p: TimelineProps) {
     const [rowDrag, setRowDrag] = useState<{t: string; x: number; y: number; before: string | null; lineY: number | null} | null>(null);
     const [menuAt, setMenuAt] = useState({x: 0, y: 0});
     const passQ = useCallback((i: Item) => passes(i, F, q, label(i.table)), [F, q, label]);
-    const passT = useCallback((i: Item) => !hid.has(i.id) && passQ(i) && passCol(i, CF), [passQ, CF, hid]);
+    const passT = useCallback((i: Item) => !hid.has(i.id) && passQ(i) && hPassCol(i, CF), [passQ, CF, hid]);
     const filtered = useMemo(() => items.filter(passT), [items, passT]);
     const timed = useMemo(() => filtered.filter(i => i.s !== null && i.e !== null), [filtered]);
     const tables = useMemo(() => order.filter(t => shown.has(t)), [order, shown]);
@@ -349,6 +359,15 @@ export function HTimeline(p: TimelineProps) {
             const vp = vpRef.current;
             const el = e.target as HTMLElement;
             if (!vp) return;
+            // v0.1.2 #1: over the cross-section window the wheel scrolls ITS cards only (never the timeline / page)
+            const win = el.closest('.win') as HTMLElement | null;
+            if (win && !el.closest('.hmenu,.menu')) {
+                const g = win.querySelector<HTMLElement>('.wg');
+                if (g && g.scrollHeight > g.clientHeight) g.scrollTop += wheelPx(e.deltaY || e.deltaX, e.deltaMode, g.clientHeight);
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
             const sc = el.closest('.menu,.wpanel,.cp,.hmenu,.jp') as HTMLElement | null;
             if (sc && sc.scrollHeight > sc.clientHeight) return;
             if (el.closest('.hrh') || e.shiftKey) {
@@ -701,11 +720,7 @@ export function HTimeline(p: TimelineProps) {
                     </span>
                 </div>,
             );
-            rul.push(
-                <div key={`dp${si}`} className="hdp" style={{right: HW + s.y + s.h + 4, background: phaseBg(ph)}}>
-                    {b.t.replace(/ · .*$/, '')} · {b.s}
-                </div>,
-            );
+            // (v0.1.2: the ruler's day pill is drawn in its own loop below — its day can be on screen while the separator is not)
         } else if (s.kind === 'cmp') {
             under.push(
                 <div key={`c${si}`} className="hgap" style={{right: HW + s.y, width: s.h}} title={`${s.n} שעות ריקות · ${fmt(s.t0)}–${fmt(s.t1)}`}>
@@ -715,9 +730,31 @@ export function HTimeline(p: TimelineProps) {
         }
     });
 
+    segs.forEach((s, si) => {
+        if (s.kind !== 'day') return;
+        const d = p.days[s.k] ?? NO_DAY;
+        const ph = phase(d.n, fl);
+        const b = dayBar(d, fl, words);
+        // v0.1.2 #9: the SAME title as the vertical's day header (dayBar → «יום 2 · פסטיבל · …» / «הכנות · עוד 3 ימים» /
+        // «פירוק · יום 1» + weekday · date) — never cut to the phase word; it sticks to the visible right edge of its day
+        const nextDay = segs.slice(si + 1).find(x => x.kind === 'day');
+        const u0 = s.y + s.h,
+            u1 = nextDay ? nextDay.y : ax.width;
+        if (u1 < vis0 || u0 > vis1) return;
+        const txt = `${b.t} · ${b.s}`;
+        const pu = dayPillU(u0, u1, sl, measure(txt, 10.5) + 16);
+        if (pu !== null)
+            rul.push(
+                <div key={`dp${si}`} className="hdp" data-k={s.k} data-title={b.t} style={{right: HW + pu, background: phaseBg(ph)}} title={txt} data-slot={s.k === k ? 'Heading_2–4 · Date_3 · Number_4 (כותרת יום — כמו באנכי)' : undefined}>
+                    {txt}
+                </div>,
+            );
+    });
     const barNodes = (t: string, row: HRow): ReactNode[] => {
         const out: ReactNode[] = [];
-        const bh = row.laneH - 4;
+        const bh = barH(row.laneH);
+        // v0.1.2 #8: text never scales; below one line (TEXT_MIN) only the coloured bars stay (name on hover)
+        const noText = row.laneH < TEXT_MIN;
         const resz = canEdit(t, 'resize').ok;
         for (const g of row.groups) {
             if (g.lodge) {
@@ -737,7 +774,7 @@ export function HTimeline(p: TimelineProps) {
                 // the part of the bar inside the cross-section strip: name only, enlarged (smaller when crowded)
                 const la = Math.max(b.u0, sa),
                     lz = Math.min(b.u1, sb);
-                const L = xs && !b.ad ? hLens(i.name, lz - la, crowd, measure) : null;
+                const L = xs && !b.ad && !noText ? hLens(i.name, lz - la, crowd, measure) : null;
                 out.push(
                     <div
                         key={i.id}
@@ -762,6 +799,7 @@ export function HTimeline(p: TimelineProps) {
                             </b>
                         </div>,
                     );
+                if (noText) continue;
                 if (L?.full) {
                     // the strip already shows the name → outside only the time, where it fits
                     const need = measure(timeTxt, 11.5, false) + 12;
@@ -886,11 +924,13 @@ export function HTimeline(p: TimelineProps) {
     };
     const pickT = openDd?.startsWith('vf:') ? openDd.slice(3) : null;
     const cfT = openDd?.startsWith('cf:') ? openDd.slice(3) : null;
-    const canF = (t: string) => colCount(CF[t]) > 0 || items.some(i => i.table === t && (i.hall.length || i.people.length || i.films.length || i.st || (i.fx && Object.keys(i.fx).length)));
-    const cfDims = cfT ? colDims(items.filter(i => i.table === cfT), CF[cfT], p.facetLabels, passQ) : [];
-    const cfCur = cfDims.find(d => d.key === (cfT && cfDim[cfT])) ?? cfDims.find(d => CF[cfT ?? '']?.[d.key]?.vals.length) ?? cfDims[0];
+    const canF = (t: string) => hColCount(CF[t]) > 0 || (p.filterFields?.[t]?.length ?? 0) > 0 || items.some(i => i.table === t && (i.hall.length || i.people.length || i.films.length || i.st || (i.fx && Object.keys(i.fx).length)));
+    const cfDims = cfT ? hColDims(items.filter(i => i.table === cfT), CF[cfT], p.facetLabels, passQ, p.filterFields?.[cfT] ?? []) : [];
+    const cfCur = cfDims.find(d => d.key === (cfT && cfDim[cfT])) ?? cfDims.find(d => (CF[cfT ?? '']?.[d.key]?.vals.length ?? 0) > 0 || noVals(CF[cfT ?? '']?.[d.key]?.op ?? 'any')) ?? cfDims[0];
     const wRows = winGridRows(p.numbers.maxCards, WIN_COLS);
-    const maxCards = hits.length > p.numbers.maxCards ? p.numbers.maxCards - 1 : p.numbers.maxCards;
+    // v0.1.2 #2: tables shrunk / hidden in the window and 👁-hidden records crossing it → vertical tabs at its LEFT edge
+    const stripT = order.filter(t => shown.has(t) && (wOff.has(t) || wHide.has(t))).map(t => ({t, n: pills.find(x => x.t === t)?.n ?? hits.filter(h => h.table === t).length}));
+    const stripRec = xs ? items.filter(i => hid.has(i.id) && i.s !== null && overlaps(i, ba, bb) && wShown.has(i.table) && !wOff.has(i.table)) : [];
     const wEmpty = xs && hits.length === 0;
     const curMin = xp.t;
     const menuT = openDd?.startsWith('cm:') ? openDd.slice(3) : null;
@@ -899,7 +939,7 @@ export function HTimeline(p: TimelineProps) {
 
     const header = (t: string, row: HRow, first: boolean) => {
         const lanes = row.groups.reduce((a, g) => a + g.lanes, 0);
-        const fc = colCount(CF[t]);
+        const fc = hColCount(CF[t]);
         return (
             <div className="hrh" style={{['--c' as string]: C(t)} as CSSProperties} data-slot={first ? 'Option_List_6 (תווית · צבע)' : undefined}>
                 <div className="l1">
@@ -932,7 +972,7 @@ export function HTimeline(p: TimelineProps) {
                         aria-disabled={!canF(t)}
                         title={!canF(t) ? `אין בטבלה ${HE(t)} שדות בחירה/קישור עם ערכים לסינון` : fc ? `סינון ${HE(t)} · ${fc} ערכים פעילים` : `סינון ${HE(t)}`}
                         data-cm={'cf:' + t}
-                        data-slot={first ? 'Filter_N / חלונית ימנית (ברירת מחדל) · per user' : undefined}
+                        data-slot={first ? 'Filter_N «Table.Field הוא/אינו/מכיל/ריק ערך» · חלונית ימנית · per user' : undefined}
                         onClick={e => {
                             e.stopPropagation();
                             if (!canF(t)) return;
@@ -1019,7 +1059,7 @@ export function HTimeline(p: TimelineProps) {
                 <h1 className="ptl" data-slot="Title">
                     {T.Title} {p.demo ? <span className="demo">DEMO</span> : null}
                 </h1>
-                <div className={ddCls('res', 'res')} data-slot="Dropdown_3 · Option_List_3">
+                <div className={ddCls('res', 'res')} data-slot="Dropdown_Label_3 · Option_List_3 · Dropdown_Default_3 (720 = 12 ש׳)">
                     <button onClick={ddBtn('res')}>
                         <small>{p.res.label}</small>
                         <span>{resLabel}</span>
@@ -1074,7 +1114,7 @@ export function HTimeline(p: TimelineProps) {
                         </div>
                     </div>
                 </div>
-                <div className={ddCls('view')} data-slot="Tab_Label_1">
+                <div className={ddCls('view')} data-slot="Tab_Label_1 (Toggle_1 טבלאות ריקות · Toggle_2 שעות ריקות — ברירת מחדל ON)">
                     <button onClick={ddBtn('view')}>{T.Tab_Label_1}</button>
                     <div className="menu" onClick={e => e.stopPropagation()}>
                         {p.toggles.collapse.label ? (
@@ -1186,10 +1226,7 @@ export function HTimeline(p: TimelineProps) {
                                         >
                                             {pk.length ? <b className="num">{pk.length}</b> : null}▾
                                         </a>
-                                        <a className="sh" title={`כיווץ ${HE(x.t)} לפס בצד שמאל (לחיצה על הפס מחזירה)`} onClick={() => setWOff(o => toggleIn(o, x.t))}>
-                                            ⇤
-                                        </a>
-                                        <a className="x" title={`הסתרת ${HE(x.t)} מהחתך («הכל» מחזיר)`} onClick={() => setWHide(o => toggleIn(o, x.t))}>
+                                        <a className="x" title={`כיווץ ${HE(x.t)} לפס בצד שמאל של החתך (לחיצה על הפס מחזירה)`} onClick={() => setWOff(o => toggleIn(o, x.t))}>
                                             ✕
                                         </a>
                                     </span>
@@ -1200,16 +1237,6 @@ export function HTimeline(p: TimelineProps) {
                                 הכל
                             </a>
                         ) : null}
-                        <span className="woff">
-                            {pills
-                                .filter(x => !x.on)
-                                .map(x => (
-                                    <span key={x.t} data-t={x.t} role="switch" aria-checked={false} className="wp1 off" title={`${HE(x.t)} · מכווץ בחתך (${x.n}) · לחצו להרחבה`} style={{['--c' as string]: C(x.t)} as CSSProperties} onClick={() => setWOff(o => toggleIn(o, x.t))}>
-                                        <span className="ab">{HE(x.t).slice(0, 2)}</span>
-                                        <span className="c num">{x.n}</span>
-                                    </span>
-                                ))}
-                        </span>
                     </span>
                     <a
                         className={`wf ${wfN || hiddenN ? 'act' : ''}`}
@@ -1248,25 +1275,63 @@ export function HTimeline(p: TimelineProps) {
                     </span>
                 </div>
                 <div className="wslide">
-                    <div className="wg" data-slot="Number_2 (מקס׳ כרטיסים)" style={{gridTemplateRows: `repeat(${wRows}, var(--wcH))`}}>
-                        {hits.slice(0, maxCards).map((i, n) => (
-                            <div key={n} className={`wc ${i.s <= curMin && i.e > curMin ? 'now' : ''}`} style={{borderInlineStartColor: C(i.table)}}>
-                                <span className="tg" style={{background: FILL(i.table), color: 'var(--ink)'}}>
-                                    {HE(i.table)}
-                                </span>
-                                {i.id && !i.agg ? (
-                                    <a className="nm open" title={`${i.name} · פתיחת הרשומה`} data-id={i.id} onClick={() => openRec(i.table, i.id as string)} data-slot={n === 0 ? 'פתיחת רשומה (expandRecord)' : undefined}>
-                                        {i.name}
-                                    </a>
-                                ) : (
-                                    <span className="nm" title={i.name}>
-                                        {i.name}
+                    <div className="wbody">
+                        <div
+                            className="wg"
+                            data-slot="Number_2 (שורות גלויות · גלילה בתוך החתך)"
+                            style={{height: `calc(${wRows} * var(--wcH) + ${wRows - 1} * 3px)`}}
+                        >
+                            {hits.slice(0, WIN_MAX).map((i, n) => (
+                                <div key={n} className={`wc ${i.s <= curMin && i.e > curMin ? 'now' : ''}`} style={{borderInlineStartColor: C(i.table)}}>
+                                    <span className="tg" style={{background: FILL(i.table), color: 'var(--ink)'}}>
+                                        {HE(i.table)}
                                     </span>
-                                )}
-                                {i.id && !i.agg ? <Eye id={i.id} name={i.name} onHide={hideRec} /> : null}
+                                    {i.id && !i.agg ? (
+                                        <a className="nm open" title={`${i.name} · פתיחת הרשומה`} data-id={i.id} onClick={() => openRec(i.table, i.id as string)} data-slot={n === 0 ? 'פתיחת רשומה (expandRecord)' : undefined}>
+                                            {i.name}
+                                        </a>
+                                    ) : (
+                                        <span className="nm" title={i.name}>
+                                            {i.name}
+                                        </span>
+                                    )}
+                                    {i.id && !i.agg ? <Eye id={i.id} name={i.name} onHide={hideRec} /> : null}
+                                </div>
+                            ))}
+                            {hits.length > WIN_MAX ? <div className="wc more">+{hits.length - WIN_MAX} עוד בחתך</div> : null}
+                        </div>
+                        {stripT.length || stripRec.length ? (
+                            <div className="wstrip" data-slot="✕ / 👁 בחתך → פס משמאל (לחיצה מחזירה)">
+                                {stripT.map(x => (
+                                    <a
+                                        key={x.t}
+                                        data-t={x.t}
+                                        role="button"
+                                        className="wst tbl"
+                                        style={{['--c' as string]: C(x.t), ['--f' as string]: FILL(x.t)} as CSSProperties}
+                                        title={`${HE(x.t)} · מכווץ בחתך (${x.n}) · לחצו להחזרה`}
+                                        onClick={() => {
+                                            setWOff(o => new Set([...o].filter(z => z !== x.t)));
+                                            setWHide(o => new Set([...o].filter(z => z !== x.t)));
+                                        }}
+                                    >
+                                        <span className="wsl">{HE(x.t)}</span>
+                                        <span className="c num">{x.n}</span>
+                                    </a>
+                                ))}
+                                {stripRec.slice(0, 6).map(i => (
+                                    <a key={i.id} data-id={i.id} role="button" className="wst rec" style={{['--c' as string]: C(i.table)} as CSSProperties} title={`👁 «${i.name}» מוסתר · לחצו להחזרה`} onClick={() => unhideRec(i.id)}>
+                                        <span className="wsl">{i.name}</span>
+                                        <span className="c">👁</span>
+                                    </a>
+                                ))}
+                                {stripRec.length > 6 ? (
+                                    <a role="button" className="wst rec more" title="החזרת כל המוסתרות בחתך" onClick={() => setHid(h => new Set([...h].filter(id => !stripRec.some(r => r.id === id))))}>
+                                        <span className="wsl">+{stripRec.length - 6}</span>
+                                    </a>
+                                ) : null}
                             </div>
-                        ))}
-                        {hits.length > maxCards ? <div className="wc more">+{hits.length - maxCards} עוד בחתך</div> : null}
+                        ) : null}
                     </div>
                 </div>
             </div>
@@ -1309,7 +1374,7 @@ export function HTimeline(p: TimelineProps) {
                             const row = rows[t];
                             if (!row) return null;
                             return (
-                                <div key={t} className="hrow" data-t={t} style={{height: row.h, width: totalW, ['--c' as string]: C(t), ['--f' as string]: FILL(t)} as CSSProperties} onPointerDown={e => rowBgDown(e, t)}>
+                                <div key={t} className={`hrow ${row.laneH < TEXT_MIN ? 'thin' : ''}`} data-t={t} style={{height: row.h, width: totalW, ['--c' as string]: C(t), ['--f' as string]: FILL(t)} as CSSProperties} onPointerDown={e => rowBgDown(e, t)}>
                                     {header(t, row, n === 0)}
                                     <div className="hta" style={{width: timeW, height: row.h}}>
                                         {row.groups.map((g, gi) => (gi ? <div key={`s${gi}`} className="hgsep" style={{top: g.y - 3}} /> : null))}
@@ -1357,26 +1422,44 @@ export function HTimeline(p: TimelineProps) {
                         <>
                             <div className="cfd" role="tablist" aria-label="שדה">
                                 {cfDims.map(d => (
-                                    <a key={d.key} role="tab" aria-selected={d.key === cfCur?.key} data-d={d.key} className={d.key === cfCur?.key ? 'on' : ''} onClick={() => setCfDim(m => ({...m, [cfT]: d.key}))}>
+                                    <a key={d.key} role="tab" aria-selected={d.key === cfCur?.key} data-d={d.key} className={`${d.key === cfCur?.key ? 'on' : ''} ${d.cfg ? 'cfg' : ''}`} title={d.cfg ? 'שדה סינון מוגדר (חלונית ימנית / Extension_Config)' : undefined} onClick={() => setCfDim(m => ({...m, [cfT]: d.key}))}>
                                         {d.label}
-                                        {CF[cfT]?.[d.key]?.vals.length ? <b className="num">{CF[cfT][d.key].vals.length}</b> : null}
+                                        {hColCount({x: CF[cfT]?.[d.key] ?? {op: 'any', vals: []}}) ? <b className="num">{hColCount({x: CF[cfT]?.[d.key] ?? {op: 'any', vals: []}})}</b> : null}
                                     </a>
                                 ))}
                             </div>
                             {cfCur ? (
                                 <>
-                                    <div className="cfop">
-                                        {(['any', 'none'] as const).map(o => (
-                                            <a key={o} data-op={o} className={(CF[cfT]?.[cfCur.key]?.op ?? 'any') === o ? 'on' : ''} onClick={() => setColF(c => ({...c, [cfT]: {...(CF[cfT] ?? {}), [cfCur.key]: {op: o, vals: CF[cfT]?.[cfCur.key]?.vals ?? []}}}))}>
-                                                {o === 'any' ? 'הוא אחד מ…' : 'אינו אחד מ…'}
+                                    <div className="cfop hcfop" role="radiogroup" aria-label="תנאי">
+                                        {(['any', 'none', 'contains', 'ncontains', 'empty', 'notempty'] as HOp[]).map(o => (
+                                            <a key={o} data-op={o} role="radio" aria-checked={(CF[cfT]?.[cfCur.key]?.op ?? 'any') === o} className={(CF[cfT]?.[cfCur.key]?.op ?? 'any') === o ? 'on' : ''} onClick={() => setColF(c => ({...c, [cfT]: hSetOp(CF[cfT], cfCur.key, o)}))}>
+                                                {OP_HE[o]}
                                             </a>
                                         ))}
                                     </div>
-                                    <div className="cfl">
+                                    {(() => {
+                                        const op = CF[cfT]?.[cfCur.key]?.op ?? 'any';
+                                        return noVals(op) ? <div className="vh cfnv">{op === 'empty' ? 'מוצגות רק רשומות שהשדה ריק בהן' : 'מוצגות רק רשומות שיש בהן ערך בשדה'}</div> : null;
+                                    })()}
+                                    {!noVals(CF[cfT]?.[cfCur.key]?.op ?? 'any') ? (
+                                        <form
+                                            className="cftx"
+                                            onSubmit={e => {
+                                                e.preventDefault();
+                                                const v = cfTxt.trim();
+                                                if (!v) return;
+                                                if (!(CF[cfT]?.[cfCur.key]?.vals ?? []).includes(v)) setColF(c => ({...c, [cfT]: hToggleVal(CF[cfT], cfCur.key, v)}));
+                                                setCfTxt('');
+                                            }}
+                                        >
+                                            <input value={cfTxt} placeholder={(CF[cfT]?.[cfCur.key]?.op ?? 'any').includes('contains') ? 'טקסט שמופיע בשדה… (Enter)' : 'ערך נוסף… (Enter)'} onChange={e => setCfTxt(e.target.value)} />
+                                        </form>
+                                    ) : null}
+                                    <div className={`cfl ${noVals(CF[cfT]?.[cfCur.key]?.op ?? 'any') ? 'dim' : ''}`}>
                                         {cfCur.values.map(({v, n}) => {
                                             const on = (CF[cfT]?.[cfCur.key]?.vals ?? []).includes(v);
                                             return (
-                                                <div key={v} role="checkbox" aria-checked={on} className={`vi ${on ? 'on' : ''}`} onClick={() => setColF(c => ({...c, [cfT]: toggleColVal(CF[cfT], cfCur.key, v)}))}>
+                                                <div key={v} role="checkbox" aria-checked={on} className={`vi ${on ? 'on' : ''}`} onClick={() => setColF(c => ({...c, [cfT]: hToggleVal(CF[cfT], cfCur.key, v)}))}>
                                                     <span className="ck">{on ? '✓' : ''}</span>
                                                     <span className="vt">{v}</span>
                                                     <span className="n num">{n}</span>

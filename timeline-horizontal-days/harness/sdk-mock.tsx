@@ -176,6 +176,8 @@ const cfgJ: TableJ[] = QS.get('cfgmap')
                   {id: 'fldCfgVar', name: 'Variant', type: 'singleLineText'},
                   {id: 'fldCfgTitle', name: 'Title', type: 'singleLineText'},
                   {id: 'fldCfgOL6', name: 'Option_List_6', type: 'multilineText'},
+                  // horizontal v0.1.2: ?f1=<Filter_1 cell, lines «Table.Field op vals»> (needs cfgmap=1&cfgkey=h)
+                  ...(QS.get('f1') ? [{id: 'fldCfgF1', name: 'Filter_1', type: 'multilineText'}] : []),
                   ...(QS.get('d1') || QS.get('d2') ? [{id: 'fldCfgD1', name: 'Date_1', type: 'dateTime'}, {id: 'fldCfgD2', name: 'Date_2', type: 'dateTime'}] : []),
                   ...(QS.get('mf') === '0'
                       ? []
@@ -191,6 +193,7 @@ const cfgJ: TableJ[] = QS.get('cfgmap')
                           Extension: EXT,
                           Variant: CK === 'varonly' ? 'timeline' : '',
                           Display_Name: EXT === 'timeline-horizontal-days' ? 'טיימליין אופקי' : 'טיימליין ימים',
+                          ...(QS.get('f1') ? {Filter_1: QS.get('f1')} : {}),
                           ...(QS.get('d1') ? {Date_1: QS.get('d1')} : {}),
                           ...(QS.get('d2') ? {Date_2: QS.get('d2')} : {}),
                           Attachment_Mapping_Image: [{id: 'attTL1', url: 'http://127.0.0.1:8765/timeline-map.png', filename: 'timeline-v0.2.7-config-map.png', type: 'image/png', thumbnails: {large: {url: 'http://127.0.0.1:8765/timeline-map-large.png'}}}],
@@ -236,6 +239,9 @@ export const useCustomProperties = (get?: (b: unknown) => Array<{key: string; ty
         const k = tn.replace(/[^A-Za-z0-9]/g, '_');
         if (f) Object.assign(v, {[`f_${k}_field`]: f, [`f_${k}_op`]: op, [`f_${k}_vals`]: vals});
     }
+    // horizontal v0.1.2: ?pmore=Table~line1\nline2 → the right pane «שדות נוספים» of that table
+    const pm = QS.get('pmore');
+    if (pm) v[`f_${pm.slice(0, pm.indexOf('~')).replace(/[^A-Za-z0-9]/g, '_')}_more`] = pm.slice(pm.indexOf('~') + 1);
     return {customPropertyValueByKey: v, errorState: null};
 };
 // v0.2.7: status-panel v1 reads the raw right-pane value of configTable (was it really picked?)
