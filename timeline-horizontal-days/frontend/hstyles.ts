@@ -158,4 +158,33 @@ body.tl-rowresizing,body.tl-rowresizing *{cursor:row-resize!important;user-selec
 /* v0.1.3 #3: day titles in calm ink (no accent / phase colour); the clock keeps the accent */
 .htl .ban .ctr .big{color:var(--sdk-grayDark1)}
 .htl .hdp{background:white;color:var(--sdk-grayDark1);border-color:var(--sdk-grayLight1);font-weight:700}
+/* v0.1.4 — UX Critic REVISE (open since v0.1.0) */
+/* #1/#3 Cushion pattern: a name too long for its room fades out at its end (RTL end = left), never a hard cut or a spill onto a
+   neighbour; hover shows it in full above everything and dims only the neighbour it covers */
+.htl .hlab.lclip{-webkit-mask-image:linear-gradient(to right,transparent 0,black 26px);mask-image:linear-gradient(to right,transparent 0,black 26px)}
+.htl .hlab.lclip b{text-overflow:clip}
+.htl .hlab.hov{z-index:9;background:white;border-radius:4px;box-shadow:0 1px 6px color-mix(in srgb,black 22%,transparent),0 0 0 1px var(--sdk-grayLight1);overflow:visible}
+.htl .hlab.hov b{overflow:visible;text-overflow:clip}
+.htl .hb.dim,.htl .hlab.dim{opacity:.28;transition:opacity .12s}
+/* #3 ROOT CAUSE of «outside labels colliding»: the shared vertical stylesheet's hour-label rule «.hlab transform:translateY(-50%)»
+   also hit the horizontal name labels (same class name) → every name sat half a line ABOVE its bar, on the lane above */
+.htl .hlab{transform:none;line-height:normal}
+/* #2 a label crossing the cross-section strip sits above the lens (the lens keeps only its highlight) */
+.htl .hlab.ovl{z-index:5}
+/* #4 one time tag: the now tag hides next to the cross-section clock tag (the red now line stays) */
+.htl .hnowt.hid{display:none}
+/* #6 window: cards size to their names and share each line (no empty columns), words never broken mid-word */
+.htl .win .wslide>.wbody>.wg{display:flex;flex-wrap:wrap;align-content:flex-start;gap:3px 4px}
+.htl .win .wg>.wc{flex:1 1 auto;height:var(--wcH);min-width:150px;max-width:380px;box-sizing:border-box}
+.htl .win .wg>.wc.more{flex:0 0 auto;min-width:110px}
+.htl .wc .nm{overflow-wrap:break-word}
+/* #7 hall / hotel labels: aligned to their group line, 2 lines instead of a hard cut; full width below the header lines */
+.htl .hrh .hgl2{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:15px;max-width:76px;overflow-wrap:break-word}
+.htl .hrh .hgl2.wide{right:8px;max-width:none}
+.htl .hrh .hgsep2{position:absolute;left:0;right:0;border-top:1px dashed var(--sdk-grayLight2)}
+/* #8 the create-drag ghost names its clashes */
+.htl .hghost.clash{border-color:var(--sdk-redDark1);background:color-mix(in srgb,var(--sdk-redDark1) 9%,white);z-index:8}
+.htl .hghost .hclash{font-style:normal;font-size:11.5px;line-height:14px;font-weight:700;color:var(--sdk-redDark1);white-space:normal;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+/* #5 24-hour time field */
+.htl .jumpc .jt{width:64px;text-align:center}
 `;

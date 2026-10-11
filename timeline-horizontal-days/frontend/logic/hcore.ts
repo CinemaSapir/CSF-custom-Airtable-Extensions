@@ -78,7 +78,8 @@ export function spanOf(i: Item, days: Day[]): {s: number; e: number; ad: boolean
 }
 
 /** a bar with its lane; the lane reserves the label's width too, so a name never gets squeezed by its neighbour */
-export type HBar = {item: Item; s: number; e: number; ad: boolean; u0: number; u1: number; lab: number; ext: number; lane: number};
+/** rb / ra (v0.1.4): free px in the bar's lane before its start / after its reserved end (ext) — a label may move into it */
+export type HBar = {item: Item; s: number; e: number; ad: boolean; u0: number; u1: number; lab: number; ext: number; lane: number; rb?: number; ra?: number};
 export const LABEL_FS = 12.5;
 /** label padding (2 × 7px) + the 👁 hide button (≈ 18px + 5px gap) + 3px slack */
 export const LAB_PAD = 40;
@@ -103,6 +104,14 @@ export function packBars(items: Item[], days: Day[], uOf: (m: number) => number,
         ends[l] = b.ext;
         b.lane = l;
     }
+    // v0.1.4: room in the lane on each side (a sticky label may slide into it, never onto a neighbour)
+    const byLane = new Map<number, HBar[]>();
+    for (const b of bars) byLane.set(b.lane, [...(byLane.get(b.lane) ?? []), b]);
+    for (const list of byLane.values())
+        list.forEach((b, k) => {
+            b.rb = k ? b.u0 - list[k - 1].ext - gap : Infinity;
+            b.ra = k < list.length - 1 ? list[k + 1].u0 - b.ext - gap : Infinity;
+        });
     return {bars, lanes: Math.max(1, ends.length)};
 }
 
@@ -244,4 +253,58 @@ export function fdDate(v: unknown): string | null {
         return Number.isFinite(ms) ? israelParts(ms).date : null;
     }
     return null;
+}
+
+// ---------------------------------------------------------------- v0.1.4 (UX Critic REVISE, open since v0.1.0)
+/**
+ * #1 sticky labels: where a bar's name label goes so it is never cut by the right edge (sticky row headers) nor the left edge of
+ * the visible time area. Starts at the bar start (or pinned at the visible right edge while the bar crosses it), then slides into
+ * the free room of its lane (rb / ra from packBars) — never onto a neighbour; what still does not fit is clipped with «…».
+ * u = px from the time area's right edge; viewU = first visible u (right edge), viewEnd = last visible u (left edge).
+ */
+export function placeLabel(b: Pick<HBar, 'u0' | 'u1' | 'ext' | 'rb' | 'ra'>, lw: number, viewU: number, viewEnd: number): {r: number; w: number; clip: boolean} | null {
+    if (b.u1 < viewU + 6 || b.u0 > viewEnd - 6) return null; // the bar itself is not on screen
+    const minR = b.u0 - Math.max(0, b.rb ?? Infinity);
+    const maxEnd = Math.max(b.ext, b.u1) + Math.max(0, b.ra ?? Infinity);
+    let r = Math.max(b.u0, viewU + 2); // pinned at the visible right edge while the bar crosses it
+    if (r + lw > viewEnd - 2) r = Math.max(minR, viewU + 2, viewEnd - 2 - lw); // slide right so its end stays visible
+    const w = Math.min(lw, maxEnd - r, viewEnd - 2 - r);
+    if (w < 28) return null;
+    return {r, w, clip: w < lw - 0.5};
+}
+/** #4: the «now» tag hides when the cross-section clock tag is next to it (one tag, never two stacked) */
+export const NOW_TAG_GAP = 50;
+export const showNowTag = (nowU: number | null, bandU: number | null) => nowU !== null && (bandU === null || Math.abs(nowU - bandU) >= NOW_TAG_GAP);
+/** #5: typed 24-hour time → «HH:MM» («930» → 09:30, «9» → 09:00, «21.15» → 21:15); null when not a time */
+export function hhmm(s: string): string | null {
+    const t = String(s ?? '').trim().replace(/[.,;\s]/g, ':');
+    let h: number, m: number;
+    const a = t.match(/^(\d{1,2}):(\d{1,2})$/);
+    if (a) {
+        h = +a[1];
+        m = +a[2];
+    } else if (/^\d{1,4}$/.test(t)) {
+        if (t.length <= 2) {
+            h = +t;
+            m = 0;
+        } else {
+            h = +t.slice(0, t.length - 2);
+            m = +t.slice(-2);
+        }
+    } else return null;
+    if (h > 23 || m > 59) return null;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+/** #8: records of the row a create-drag ghost [a, b) overlaps (clash hint) */
+export function ghostClash<T extends {table: string; s: number | null; e: number | null}>(items: readonly T[], table: string, a: number, b: number): T[] {
+    return items.filter(i => i.table === table && i.s !== null && i.e !== null && (i.s as number) < b && (i.e as number) > a);
+}
+/** #7: where a group's hall / hotel label sits in the row header: ALWAYS aligned to its group's top line; the full header width
+ *  (2 lines) once below the header's two lines (name · count, controls ≈ 44px), else the left half next to them (2 lines) */
+export const HEAD_LINES = 44;
+export function hallLabelPos(gy: number, gh: number, gi: number, lodge: boolean): {top: number; wide: boolean} {
+    const top = gy + (lodge ? 1 : 2);
+    void gh;
+    void gi;
+    return {top, wide: top >= HEAD_LINES};
 }

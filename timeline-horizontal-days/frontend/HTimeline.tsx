@@ -3,7 +3,7 @@
  * Rows = tables (sticky row headers on the right), time runs right → left. Same props as the vertical Timeline,
  * same logic modules (core / edit); only the layout is new (logic/hcore.ts). Pure UI: no SDK imports.
  */
-import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode} from 'react';
+import {Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode} from 'react';
 import {
     DAY_MIN,
     colourOf,
@@ -45,7 +45,7 @@ import {
     type ResStep,
     type Seg,
 } from './logic/core';
-import {HW, LANE, LODGE_HEAD, LODGE_ROW, TEXT_MIN, barH, crowdedIn, dayPillU, hAxis, hLens, hLiveCounts, hRowStates, resizeLane, rowDropTarget, rowLayout, scrollLeftFor, slOf, stickyU, type HRow, type Measure, hDayTitle} from './logic/hcore';
+import {HW, LANE, LODGE_HEAD, LODGE_ROW, TEXT_MIN, barH, crowdedIn, dayPillU, hAxis, hLens, hLiveCounts, hRowStates, resizeLane, rowDropTarget, rowLayout, scrollLeftFor, slOf, stickyU, type HRow, type Measure, hDayTitle, placeLabel, showNowTag, hhmm, ghostClash, hallLabelPos} from './logic/hcore';
 import {OP_HE, hColCount, hColDims, hEffectiveCF, hNormalizeCF, hPassCol, hSetOp, hToggleVal, noVals, type HColFilters, type HOp} from './logic/hfilter';
 import {CSS} from './styles';
 import {HCSS} from './hstyles';
@@ -312,6 +312,8 @@ export function HTimeline(p: TimelineProps) {
     const hideRec = (id: string) => setHid(s => new Set([...s, id]));
     const unhideRec = (id: string) => setHid(s => new Set([...s].filter(x => x !== id)));
     const [ghost, setGhost] = useState<{t: string; a: number; b: number} | null>(null);
+    // v0.1.4 (critic #1/#3, Cushion pattern): hovering a faded (too long) name shows it in full and dims only the neighbour it covers
+    const [hov, setHov] = useState<{t: string; id: string; top: number; a: number; z: number} | null>(null);
     const [pop, setPop] = useState<CreateReq | null>(null);
     const [popErr, setPopErr] = useState<string | null>(null);
     const [popBusy, setPopBusy] = useState(false);
@@ -768,15 +770,22 @@ export function HTimeline(p: TimelineProps) {
                 const hatch = i.inherited || /זמן לפי המשבצת/.test(i.sub);
                 const timeTxt = b.ad ? T.Content_Text_2 || 'כל היום' : `${fmt(b.s)}–${fmt(b.e)}`;
                 const tw = measure(' · ' + timeTxt, 11.5, false) + 6;
-                const stick = stickyU(b.u0, b.u1, sl, Math.min(b.lab, w));
                 // the part of the bar inside the cross-section strip: name only, enlarged (smaller when crowded)
                 const la = Math.max(b.u0, sa),
                     lz = Math.min(b.u1, sb);
                 const L = xs && !b.ad && !noText ? hLens(i.name, lz - la, crowd, measure) : null;
+                // v0.1.4 #1: the name label is placed BEFORE drawing (sticky at both visible edges, slides into free lane room only)
+                const visW = Math.min(b.u1, sl + W) - Math.max(b.u0, sl);
+                const withT = visW >= b.lab + tw;
+                const P = noText || L?.full ? null : placeLabel(b, withT ? visW - 4 : b.lab, sl, sl + W);
+                // v0.1.4 #2: a label crossing the cross-section strip → the lens keeps its highlight but not a second title
+                const dupe = !!(L && P && P.r < sb && P.r + P.w > sa);
+                const isHov = !!(hov && hov.t === t && hov.id === i.id);
+                const dim = !!(hov && hov.t === t && hov.id !== i.id && hov.top === top && Math.max(b.u0, P?.r ?? b.u0) < hov.z && Math.max(b.u1, P ? P.r + P.w : b.u1) > hov.a);
                 out.push(
                     <div
                         key={i.id}
-                        className={`hb ${hatch ? 'hatch' : ''} ${b.ad ? 'ad' : ''} ${i.flag === 'cancel' ? 'cancel' : ''}`}
+                        className={`hb ${hatch ? 'hatch' : ''} ${b.ad ? 'ad' : ''} ${i.flag === 'cancel' ? 'cancel' : ''} ${dim ? 'dim' : ''}`}
                         data-id={i.id}
                         title={`${i.name} · ${timeTxt}${i.inherited ? ' · הזמן נקבע לפי המשבצת' : ''}`}
                         style={{right: b.u0, width: Math.max(4, w), top, height: bh, ['--tint' as string]: FILL(t), borderRightColor: C(t)} as CSSProperties}
@@ -791,10 +800,12 @@ export function HTimeline(p: TimelineProps) {
                 );
                 if (L)
                     out.push(
-                        <div key={`L${i.id}`} className={`hlens ${L.clip ? 'clip' : ''} ${crowd ? 'crowd' : ''}`} data-id={i.id} style={{right: la + 3, width: lz - la - 6, top, height: bh}} title={i.name} onPointerDown={e => barDown(e, i, 'move')}>
-                            <b className="bn" data-clip={L.clip ? '1' : '0'} style={{fontSize: L.fs}}>
-                                {i.name}
-                            </b>
+                        <div key={`L${i.id}`} className={`hlens ${L.clip ? 'clip' : ''} ${crowd ? 'crowd' : ''} ${dupe ? 'notext' : ''}`} data-id={i.id} style={{right: la + 3, width: lz - la - 6, top, height: bh}} title={i.name} onPointerDown={e => barDown(e, i, 'move')}>
+                            {dupe ? null : (
+                                <b className="bn" data-clip={L.clip ? '1' : '0'} style={{fontSize: L.fs}}>
+                                    {i.name}
+                                </b>
+                            )}
                         </div>,
                     );
                 if (noText) continue;
@@ -812,28 +823,33 @@ export function HTimeline(p: TimelineProps) {
                     );
                     if (rp >= need) out.push(tn(b.u0, rp));
                     else if (lp >= need) out.push(tn(lz, lp));
-                } else {
-                    const withT = w - stick >= b.lab + tw;
-                    const lw = withT ? w - stick : b.lab;
-                    const ext = !withT && b.lab > w - stick;
+                } else if (P) {
+                    const ext = P.r < b.u0 - 0.5 || P.r + P.w > b.u1 + 0.5;
+                    const showT = withT && !P.clip;
+                    const full = b.lab;
                     out.push(
                         <div
                             key={`n${i.id}`}
-                            className={`hlab nm ${ext ? 'ext' : ''} ${stick ? 'pinned' : ''} ${row.laneH >= 40 ? 'tall' : ''}`}
+                            className={`hlab nm ${ext ? 'ext' : ''} ${P.r > b.u0 + 0.5 || P.r < b.u0 - 0.5 ? 'pinned' : ''} ${P.clip && !isHov ? 'lclip' : ''} ${isHov ? 'hov' : ''} ${dupe ? 'ovl' : ''} ${dim ? 'dim' : ''} ${row.laneH >= 40 ? 'tall' : ''}`}
                             data-n={i.name}
                             data-id={i.id}
-                            style={{right: b.u0 + stick, width: lw, top, height: bh}}
+                            title={P.clip ? i.name : undefined}
+                            style={{right: isHov ? Math.min(P.r, Math.max(sl + 2, sl + W - 2 - full)) : P.r, width: isHov ? full : P.w, top, height: bh}}
+                            onPointerEnter={P.clip ? () => setHov({t, id: i.id, top, a: Math.min(P.r, Math.max(sl + 2, sl + W - 2 - full)), z: Math.min(P.r, Math.max(sl + 2, sl + W - 2 - full)) + full}) : undefined}
+                            onPointerLeave={P.clip ? () => setHov(h => (h && h.id === i.id ? null : h)) : undefined}
                             onPointerDown={e => {
                                 if ((e.target as HTMLElement).closest('.eye')) return;
                                 if (b.ad) return e.stopPropagation();
-                                barDown(e, i, 'move');
+                                // v0.1.4: the label now sits ON its bar (#3) → its left 7px over the bar's end still resizes
+                                const bar = (e.currentTarget.parentElement as HTMLElement | null)?.querySelector(`.hb[data-id="${i.id}"]`)?.getBoundingClientRect();
+                                barDown(e, i, resz && bar && e.clientX >= bar.left - 1 && e.clientX <= bar.left + 7 ? 'resize' : 'move');
                             }}
                             onClick={b.ad ? () => openRec(t, i.id) : undefined}
                         >
                             <b className="open" title="פתיחת הרשומה">
                                 {i.name}
                             </b>
-                            {withT ? (
+                            {showT ? (
                                 <span className="t">
                                     {' · '}
                                     <bdi dir="ltr">{timeTxt}</bdi>
@@ -1016,13 +1032,20 @@ export function HTimeline(p: TimelineProps) {
                         </span>
                     ) : null}
                 </div>
-                {row.groups.map(g =>
-                    g.key ? (
-                        <div key={g.key} className="hgl2" style={{top: g.y + (g.lodge ? 1 : 4)}} title={g.key}>
-                            {g.key}
-                        </div>
-                    ) : null,
-                )}
+                {/* v0.1.4 #7: hall / hotel labels line up with their group (same separator line as the bars) and are not cut:
+                    below the header lines they take the full header width (2 lines), next to them the left half (2 lines) */}
+                {row.groups.map((g, gi) => {
+                    if (!g.key) return null;
+                    const pos = hallLabelPos(g.y, g.h, gi, !!g.lodge);
+                    return (
+                        <Fragment key={g.key}>
+                            {gi ? <div className="hgsep2" style={{top: g.y - 3}} /> : null}
+                            <div className={`hgl2 ${pos.wide ? 'wide' : ''}`} style={{top: pos.top}} title={g.key} data-g={gi}>
+                                {g.key}
+                            </div>
+                        </Fragment>
+                    );
+                })}
                 <span
                     className={`hrz ${laneH[t] !== undefined ? 'set' : ''}`}
                     role="separator"
@@ -1346,7 +1369,7 @@ export function HTimeline(p: TimelineProps) {
                             </div>
                             {rul}
                             {nowM !== null ? (
-                                <div className="hnowt num" style={{right: HW + uOf(nowM)}} data-m={nowM} data-slot="Button_Text_1 (קו עכשיו)">
+                                <div className={`hnowt num ${showNowTag(uOf(nowM) - sl, xp.yc) ? '' : 'hid'}`} style={{right: HW + uOf(nowM)}} data-m={nowM} data-slot="Button_Text_1 (קו עכשיו)">
                                     <bdi dir="ltr">{fmt(nowM)}</bdi>
                                 </div>
                             ) : null}
@@ -1378,12 +1401,7 @@ export function HTimeline(p: TimelineProps) {
                                         {row.groups.map((g, gi) => (gi ? <div key={`s${gi}`} className="hgsep" style={{top: g.y - 3}} /> : null))}
                                         {barNodes(t, row)}
                                         {ghost && ghost.t === t ? (
-                                            <div className="ghost hghost" style={{right: uOf(ghost.a), width: Math.max(18, uOf(ghost.b) - uOf(ghost.a)), top: 3, height: row.h - 6}}>
-                                                <b>{t === 'Slots_Events' ? 'משבצת חדשה' : T.Content_Text_10 || 'רשומה חדשה'}</b>
-                                                <span>
-                                                    <Rng a={ghost.a} b={ghost.b} />
-                                                </span>
-                                            </div>
+                                            <GhostBar t={t} a={ghost.a} b={ghost.b} u={uOf} rowH={row.h} label={t === 'Slots_Events' ? 'משבצת חדשה' : T.Content_Text_10 || 'רשומה חדשה'} clash={ghostClash(filtered, t, ghost.a, ghost.b)} />
                                         ) : null}
                                     </div>
                                 </div>
@@ -1638,7 +1656,26 @@ export function HTimeline(p: TimelineProps) {
     );
 }
 
-/** ONE inline control — native calendar date + time, side by side */
+/** v0.1.4 #8: the create-drag ghost — names the records it would clash with (red edge + «חופף ל-…»), drawn as its own lane strip */
+function GhostBar(props: {t: string; a: number; b: number; u: (m: number) => number; rowH: number; label: string; clash: ReadonlyArray<{name: string}>}) {
+    const {a, b, u, clash} = props;
+    const n = clash.length;
+    return (
+        <div className={`ghost hghost ${n ? 'clash' : ''}`} data-clash={n} style={{right: u(a), width: Math.max(18, u(b) - u(a)), top: 3, height: props.rowH - 6}}>
+            <b>{props.label}</b>
+            <span>
+                <Rng a={a} b={b} />
+            </span>
+            {n ? (
+                <em className="hclash" title={clash.map(c => c.name).join('\n')}>
+                    ⚠ חופף ל-{n === 1 ? clash[0].name : `${n} רשומות: ${clash[0].name}…`}
+                </em>
+            ) : null}
+        </div>
+    );
+}
+
+/** ONE inline control — native calendar date + 24-hour time, side by side */
 function JumpControl(props: {days: Day[]; cur: number; label: string; onGo: (m: number | null) => void}) {
     const {days, cur} = props;
     const d = dayOf(days, cur);
@@ -1649,7 +1686,7 @@ function JumpControl(props: {days: Day[]; cur: number; label: string; onGo: (m: 
     const date = dv ?? curDate,
         time = tv ?? curTime;
     const go = () => {
-        props.onGo(jumpFrom(days, date, time));
+        props.onGo(jumpFrom(days, date, hhmm(time) ?? curTime));
         setDv(null);
         setTv(null);
     };
@@ -1663,7 +1700,19 @@ function JumpControl(props: {days: Day[]; cur: number; label: string; onGo: (m: 
     return (
         <div className="jumpc" dir="ltr" onClick={e => e.stopPropagation()} data-slot="Button_Text_2 · Date_1–2">
             <input type="date" className="jd" aria-label="תאריך" value={date} min={days[0]?.date} max={days[days.length - 1]?.date} onChange={e => setDv(e.target.value)} onKeyDown={key} />
-            <input type="time" className="jt" aria-label="שעה" value={time} step={900} onChange={e => setTv(e.target.value)} onKeyDown={key} />
+            {/* v0.1.4 #5: 24-hour text field (the native time input follows the OS locale → «01:00 PM») */}
+            <input
+                type="text"
+                className="jt num"
+                aria-label="שעה (24 שעות)"
+                inputMode="numeric"
+                maxLength={5}
+                placeholder="HH:MM"
+                value={time}
+                onChange={e => setTv(e.target.value)}
+                onBlur={() => tv !== null && setTv(hhmm(tv) ?? curTime)}
+                onKeyDown={key}
+            />
             <button className="bb jgo" onClick={go}>
                 {props.label}
             </button>

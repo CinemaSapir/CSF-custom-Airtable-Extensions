@@ -63,3 +63,21 @@ Evidence: evidence/v012/before-*.png / after-*.png, evidence/config-map-h012.png
    Festival Days · Date / · שם with ✓ or ✗ + «N / M ימים קיבלו שם רשומה» + a sample. Heading_2–4 (phase words) are no longer shown.
 Tests: 144 unit (tests/v013.test.ts: DEMO Festival Days 26 records → titles == names), cdp-h013 11/11 (v0.1.2: 9 fail),
 cdp-h012 0 failing, cdp-h010 47/47. Evidence: evidence/v013/{before,after}-*.png, evidence/config-map-h013.png.
+
+## v0.1.4 — UX Critic REVISE (8 points, open since v0.1.0; all 8 still failed on v0.1.3) + Cushion label pattern (2026-10-11 08:01)
+1. Sticky labels: a bar starting off-screen keeps its name pinned at the visible RIGHT edge; near the LEFT edge the name slides
+   into free lane room so its end stays on screen (hcore placeLabel, packBars rb/ra). A name that still has no room fades out at its
+   end (mask gradient) — never a hard cut or a spill; hover shows it in full and dims only the neighbour it covers.
+2. Duplicate titles in the cross-section strip: a label crossing the strip sits above the lens; the lens keeps only its highlight.
+3. Outside labels colliding — root cause: the shared vertical stylesheet's hour-label rule «.hlab {transform: translateY(-50%)}»
+   also matched the horizontal name labels (same class), so every name sat half a lane ABOVE its bar, over the lane above.
+   Reset in hstyles; lanes already reserve each label's width. (A label on its bar's left end still resizes.)
+4. One time tag: the now tag hides when the cross-section clock tag is within 50px (the red now line stays).
+5. 24-hour time: the jump control's native time input (OS locale → «01:00 PM») is a 24h text field (930 → 09:30, Enter = go).
+6. Window: cards are flex items sized to their names and fill each line (no empty columns); words break only at spaces; the
+   v0.1.3 12.5px names and 28px cards stay.
+7. Hall / hotel labels: aligned to their group's separator line (a dashed line in the header too), 2 lines instead of «…»,
+   full header width below the header's two lines.
+8. Create-drag ghost over existing records: red edge + «⚠ חופף ל-…» naming the clash (all names in the tooltip).
+Tests: 153 unit (tests/v014.test.ts new), cdp-h014 14/14 (v0.1.3: 10 failing), cdp-h010 47/47, cdp-h012 / cdp-h013 0 failing.
+Renders: evidence/h-v014-main.png, h-v014-dense.png, h-v014-drag.png; per point evidence/v014/{before,after}-*.png.
